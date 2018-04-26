@@ -26,22 +26,23 @@ void writeRegister(FILE *file, registro* reg, int* tamCampos){
 	fwrite(reg->uf, TAM_CAMPOFIXO3, 1, file);
 
 	//escrevendo indicador de tamanho e campos de tamanho variavel
-	fwrite(tamCampos, 1, 4, file);	
+	fwrite(tamCampos, 4, 1, file);	
 	fwrite(reg->nomeEscola, tamCampos[TAM_NOMEESCOLA], 1, file);
 
-	fwrite(tamCampos +1, 1, 4, file);	
+	fwrite(tamCampos +1, 4, 1, file);	
 	fwrite(reg->municipio, tamCampos[TAM_MUNICIPIO], 1, file);
 
-	fwrite(tamCampos +2, 1, 4, file);	
+	fwrite(tamCampos +2, 4, 1, file);	
 	fwrite(reg->prestadora, tamCampos[TAM_PRESTADORA], 1, file);	
 	
 	offset = ftell(file) - offset;	//apos escrever calcula tamanho final do registro
 
-//	########## ERRO TA DANDO AQUI ############
-	fwrite(&zero, 1, REGSIZE - offset, file); //completa espaco do registro com caracteres '0'
-
+	for(int i = 0; i<REGSIZE - offset ; i++)
+		fwrite(&zero, 1, 1, file); //completa espaco do registro com caracteres '0'
 
 }
+
+
 
 /** \brief Funcao que le o arquivo CSV.
   *
