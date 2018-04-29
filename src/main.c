@@ -1,4 +1,4 @@
-/* Nome
+/* Nomes
  * Danilo Henrique Cordeiro - 6791651
  * Giovanni
  * Lucas
@@ -19,10 +19,8 @@ int main(int argc, char **argv){
   char *campo, *valor;
   char *valorCampo1, *valorCampo2, *valorCampo3, *valorCampo4, *valorCampo5, *valorCampo6;
 
-  // fileName = "debug.csv";
   fileName = "turmaB-dadosPBLE.csv";
   opt = atoi(argv[1]);
-  // printf("Registros: %d\n", readFile(fileName));
 
   switch(opt){
     case 1:
@@ -37,7 +35,6 @@ int main(int argc, char **argv){
       break;
     case 2:
       if(argc == 2){
-        readFile(fileName);
         showAll();
       } else {
         printf("Numero de parametros invalido.");
@@ -54,8 +51,6 @@ int main(int argc, char **argv){
     case 4:
       if(argc == 3){
         RRN = atoi(argv[2]);
-        readFile(fileName);
-
         findRRN(RRN);
       } else {
         printf("Numero de parametros invalido.");
