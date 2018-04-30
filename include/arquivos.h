@@ -2,11 +2,6 @@
 #define _ARQUIVOS_H_
 
 typedef struct{
-	char status;
-	int topoPilha;
-}regCabecalho;
-
-typedef struct{
   int codINEP;
   char *dataAtiv;
   char *uf;
@@ -20,8 +15,9 @@ typedef struct{
 
 int readFile(char*);
 char *getField(FILE*);
-void showAll();
+int showAll();
 void printReg(registro *reg);
-void findRRN(int RRN);
-
+int findRRN(int RRN);
+int removeReg(int RRN);
+int insertReg(int codInep, char *dataAtiv, char *uf, char *nomeEscola, char *municipio, char *prestadora);
 #endif
