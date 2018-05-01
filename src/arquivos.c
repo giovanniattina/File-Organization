@@ -14,7 +14,6 @@
   * \param **reg - Ponteiro para o ponteiro do registro a liberar.
   */
 void freeRegister(registro **reg){
-	
 	free((*reg)->dataAtiv);
 	free((*reg)->uf);
 	free((*reg)->nomeEscola);
@@ -53,7 +52,7 @@ char *getField(FILE *fileName){
     field[contador++] = c;
   } while(c != 10 && c != ';');
 
-  field[contador-1] = '\0';		
+  field[contador-1] = '\0';
   return field; //retorna o campo para ser salvo
 }
 
@@ -79,14 +78,14 @@ int readFile(char *fileName){
 			fclose(csvFile);
 		return 0;
 	}
- 	
-	setStatus(binFile, 0);
-	fwrite(&topoPilha, sizeof(int), 1, binFile);
 
 	fseek(csvFile, 0, SEEK_END); // encontra o tamanho do arquivo CSV
 	size = ftell(csvFile);
 	rewind(csvFile);
-	
+
+	setStatus(binFile, 0);
+	fwrite(&topoPilha, sizeof(int), 1, binFile);
+
 	while(ftell(csvFile) != size) { // percorre todo o arquivo CSV e atribui os campos as variaveis para salvar
 		registro *reg = malloc(sizeof(registro));
 
@@ -120,19 +119,19 @@ int readFile(char *fileName){
 		fwrite(reg->municipio, reg->tam_municipio * sizeof(char), 1, binFile);
 		fwrite(&reg->tam_prestadora, sizeof(int), 1, binFile);
 		fwrite(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
-	
+
 		int tamReg = 28 + reg->tam_prestadora + reg->tam_municipio + reg->tam_nomeEscola;
-	
+
 		for (size_t i = 0; i < REGSIZE - tamReg; i++) { // preenche os bytes que estão sobrando até chegar no tamanho do registro
 			fwrite(&zero, sizeof(char), 1, binFile);
 		}
-	
+
 		numReg++;
-		freeRegister(&reg);		
+		freeRegister(&reg);
 	}
 
 	fclose(csvFile);
-	
+
 	setStatus(binFile, 1);
 	fclose(binFile);
 
@@ -152,7 +151,7 @@ unsigned char isValidReg(int RRN, FILE *binFile){
 	pos = ftell(binFile);
 	fseek(binFile, 0, SEEK_END);
 	size = ftell(binFile);
-	
+
 	if(HEADERSIZE + RRN*REGSIZE >= size) return 0;//RRN grande demais
 
 	fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
@@ -184,7 +183,7 @@ int showAll(){
 	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
-	
+
 	if(isCorruptedFile(binFile)){
 		fclose(binFile);
 		return 0;
@@ -195,13 +194,13 @@ int showAll(){
   fseek(binFile, 0, SEEK_END);
 	size = ftell(binFile);
 	fseek(binFile, HEADERSIZE, SEEK_SET);
-	
+
 	int tamReg = 0;
 
   while(ftell(binFile) != size) {
 
 		if(isValidReg(RRN, binFile)){
-			
+
 			// aloca as memórias para cada campo
 			registro *reg = malloc(sizeof(registro));
 			reg->nomeEscola = NULL;
@@ -260,7 +259,7 @@ int findRRN(int RRN){
 
   // busca o byte offset do registro procurado no arquivo
   fseek(binFile, HEADERSIZE + RRN * REGSIZE, SEEK_SET);
-	
+
 	if(!isValidReg(RRN, binFile)){//RRN removido ou grande demais
 		// normaliza status e finaliza
 		setStatus(binFile, 1);
@@ -287,11 +286,11 @@ int findRRN(int RRN){
   fread(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
 
   printReg(reg);
-	
+
 	setStatus(binFile, 1);
 	fclose(binFile);
 	freeRegister(&reg);
-	
+
 	return 1;
 }
 
@@ -301,18 +300,18 @@ int findRRN(int RRN){
   */
 void printReg(registro *reg){
   int i;
-	
+
 	//imprime campos de tamanho fixo
   printf("%d ", reg->codINEP);
 	//como nao ha '\0', deve-se imprimir um caracter por vez
 	for(i = 0; i<DATAATIVSIZE; i++)
 		printf("%c", reg->dataAtiv[i]);
 	printf(" ");
-	
+
 	for(i = 0; i<UFSIZE; i++)
 		printf("%c", reg->uf[i]);
 	printf(" ");
-  
+
 	//imprime campos de tamanho variavel e indicadores de tamanho
 	printf("%d ", reg->tam_nomeEscola);
   if (reg->tam_nomeEscola) {
@@ -321,7 +320,7 @@ void printReg(registro *reg){
     }
     printf(" ");
   }
-  
+
 	printf("%d ", reg->tam_municipio);
   if (reg->tam_municipio) {
     for(i = 0; i < reg->tam_municipio; i++){
@@ -329,7 +328,7 @@ void printReg(registro *reg){
     }
     printf(" ");
   }
-  
+
 	printf("%d ", reg->tam_prestadora);
   if (reg->tam_prestadora) {
     for(i = 0; i < reg->tam_prestadora; i++){
@@ -346,17 +345,17 @@ void printReg(registro *reg){
 	* \return 0 - falha no aquivo ou -1 - registro RRN nao encotrado ou 1 - registros removido
 	*/
 int removeReg( int RRN){
-	
+
 	int removed = -1, topoPilha;
 	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
-	
+
 	if(isCorruptedFile(binFile)) {
 		fclose(binFile);
 		return 0;
 	}
-	
+
 	setStatus(binFile, 0);
 
 	if(!isValidReg(RRN, binFile)){
@@ -364,10 +363,10 @@ int removeReg( int RRN){
 		fclose(binFile);
 		return -1;
 	}
-	
+
 	//pegando topo da pilha
 	fread(&topoPilha, sizeof(int), 1, binFile);
-	
+
 	//removendo registro logicamente
 	fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
 	fwrite(&removed, sizeof(int), 1, binFile);
@@ -377,9 +376,9 @@ int removeReg( int RRN){
 	topoPilha = RRN;
 	fseek(binFile, 1, SEEK_SET);
 	fwrite(&topoPilha, sizeof(int), 1, binFile);
-	
+
 	setStatus(binFile, 1);
-	
+
 	rewind(binFile);
 	fclose(binFile);
 	return 1;
@@ -392,18 +391,18 @@ int removeReg( int RRN){
 	* \return 0 - falha no aquivo ou 1 - registros inserido
 	*/
 int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *municipio, char *prestadora){
-	
+
 	int topoPilha, novoTopo, sizeEsc, sizeMun, sizePrest, tamReg;
-	char zero = '0';	
+	char zero = '0';
 	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
-	
+
 	if( isCorruptedFile(binFile) ){
 		fclose(binFile);
 		return 0;
 	}
-	
+
 	setStatus(binFile, 0);
 	fread(&topoPilha, sizeof(int), 1, binFile);
 
@@ -413,13 +412,13 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 		fread(&novoTopo, sizeof(int), 1, binFile);
 		fseek(binFile, 1, SEEK_SET);
 		fwrite(&novoTopo, sizeof(int), 1, binFile);
-		
+
 		//posiciona no local de insercao
 		fseek(binFile, HEADERSIZE + topoPilha*REGSIZE, SEEK_SET);
 	}
 	else	//insere no final
 		fseek(binFile, 0, SEEK_END);
-	
+
 
 	// escrevendo campos fixos passados
 	fwrite(&codINEP, sizeof(int), 1, binFile);
@@ -428,12 +427,12 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 		fwrite("0000000000", DATAATIVSIZE, 1, binFile);
 	else
 		fwrite(dataAtiv, DATAATIVSIZE, 1, binFile);
-	
+
 	if(strlen(uf) == 0)
 		fwrite("00", UFSIZE, 1, binFile);
 	else
 		fwrite(uf, UFSIZE, 1, binFile);
-	
+
 	//escrevendo campos variaveis e indicadores de tamanho
 	sizeEsc = strlen(nomeEscola);
 	fwrite(&sizeEsc, sizeof(int), 1, binFile);
@@ -446,20 +445,14 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	sizePrest = strlen(prestadora);
 	fwrite(&sizePrest, sizeof(int), 1, binFile);
 	fwrite(prestadora, sizePrest, 1, binFile);
-	
+
 	//preenchendo com 0 o que sobrou de espaco no registro
 	tamReg = 28 + sizeEsc + sizeMun + sizePrest;
 	for (size_t i = 0; i < REGSIZE - tamReg; i++)
 		fwrite(&zero, sizeof(char), 1, binFile);
-	
+
 	setStatus(binFile, 1);
 	fclose(binFile);
 
-	return 1;	
+	return 1;
 }
-
-
-
-
-
-
