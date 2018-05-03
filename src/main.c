@@ -59,7 +59,7 @@ int main(int argc, char **argv){
 			strcpy(campo, argv[2]);
 			valor = argv[3];
  
-			funcResult = 0;	//<--- inserir func aqui
+			funcResult = search(campo, valor);
 	   	if(!funcResult)			//retornar 0
 				printf("Falha no processamento do arquivo\n");
   	  else if (funcResult < 0)		//retornar negativo
@@ -132,8 +132,7 @@ int main(int argc, char **argv){
       strcpy(valorCampo4, argv[6]);
       strcpy(valorCampo5, argv[7]);
       strcpy(valorCampo6, argv[8]);
-
-			if(!0)	//<-- inserir func aqui
+			if(!updateReg(RRN, valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6))	
 				printf("Falha no processamento do arquivo\n");
 			else
 				printf("Registro inserido com sucesso\n");
