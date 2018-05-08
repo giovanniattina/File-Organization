@@ -2,15 +2,15 @@
 #define _ARQUIVOS_H_
 
 typedef struct{
-  int codINEP;
-  char *dataAtiv;
-  char *uf;
-  char *nomeEscola;
-  char *municipio;
-  char *prestadora;
-  int tam_nomeEscola;
-  int tam_municipio;
-  int tam_prestadora;
+	int codINEP;
+	char *dataAtiv;
+	char *uf;
+	char *nomeEscola;
+	char *municipio;
+	char *prestadora;
+	int tam_nomeEscola;
+	int tam_municipio;
+	int tam_prestadora;
 }registro;
 
 int readFile(char*);
@@ -24,5 +24,7 @@ int search(char  *campName, char *value);
 int checkToPrint(registro *reg, char *camp, char *value); 
 char *stripCamp(registro *reg, char *camp);
 int updateReg(int RNN, int campo1, char *campo2, char *campo3, char *campo4, char *campo5, char *campo6);
+int compact();
+int* showStack(int* sizeStack);
 
 #endif
