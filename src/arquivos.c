@@ -236,7 +236,7 @@ int showAll(){
 
 	return (RRN > 0) ? 1 : -1;
 
-	return 1;
+	// return 1;
 }
 
 /** \brief Funcao que busca um determinado registro no arquivo binario pelo RRN e o imprime.
@@ -462,7 +462,7 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
   *
 	* \return 0 falha ao abrir aquivo ou -1 nenhum registro encotrado ou 1 registros encontrados
 	*/
-int search(char  *campName, char *value){ 
+int search(char  *campName, char *value){
   int size, RRN = 0;
 	FILE *binFile = fopen("data.dat", "rb+");
 
@@ -520,79 +520,79 @@ int search(char  *campName, char *value){
 	return (RRN > 0) ? 1 : -1;
 
 	return 1;
- 
-   
-} 
+
+
+}
 /** \brief Funcao que verifica se o registro lido tem o campo e o valor do campo é igual que o usuario esta buscando.
   *
-  * \params - registro lido, campo desejado e valor procurado 
+  * \params - registro lido, campo desejado e valor procurado
   *
 	* \return 0 se nao tiver o valor procurado no campo, 1 se achar
 	*/
-int checkToPrint(registro *reg, char *camp, char *value){ 
- 
-  if(strcmp(camp, "codINEP") == 0){ 
-    if(reg->codINEP == atoi(value)){ 
-      return 1; 
-    } 
-  }else if(strcmp(camp, "dataAtiv") == 0){ 
-    if(strcmp(reg->dataAtiv, value) == 0){ 
-      return 1; 
-    } 
-  }else if(strcmp(camp, "uf") == 0){ 
-    if(strcmp(reg->uf, value) == 0){ 
-      return 1; 
-    } 
-  }else if(strcmp(camp, "nomeEscola") == 0){ 
-    if(strcmp(stripCamp(reg, camp), value) == 0){ 
-     
-      return 1; 
-    } 
-  }else if(strcmp(camp, "municipio") == 0){ 
-    if(strcmp(stripCamp(reg, camp), value) == 0){ 
-      return 1; 
-    } 
-  }else if(strcmp(camp, "prestadora") == 0){ 
-    if(strcmp(stripCamp(reg, camp), value) == 0){ 
-      return 1; 
-    } 
-  } 
-  return 0; 
-} 
+int checkToPrint(registro *reg, char *camp, char *value){
+
+  if(strcmp(camp, "codINEP") == 0){
+    if(reg->codINEP == atoi(value)){
+      return 1;
+    }
+  }else if(strcmp(camp, "dataAtiv") == 0){
+    if(strcmp(reg->dataAtiv, value) == 0){
+      return 1;
+    }
+  }else if(strcmp(camp, "uf") == 0){
+    if(strcmp(reg->uf, value) == 0){
+      return 1;
+    }
+  }else if(strcmp(camp, "nomeEscola") == 0){
+    if(strcmp(stripCamp(reg, camp), value) == 0){
+
+      return 1;
+    }
+  }else if(strcmp(camp, "municipio") == 0){
+    if(strcmp(stripCamp(reg, camp), value) == 0){
+      return 1;
+    }
+  }else if(strcmp(camp, "prestadora") == 0){
+    if(strcmp(stripCamp(reg, camp), value) == 0){
+      return 1;
+    }
+  }
+  return 0;
+}
 
 /** \brief Funcao que retorna um valor do campo com apenas o valors de bytes de dados.
   *
   * \params - endereço com os dados do registo salvo e o campo que quer dar strip
   *
-	* \return string ou null se nao tiver nada no campo 
+	* \return string ou null se nao tiver nada no campo
 	*/
 char *stripCamp(registro *reg, char *camp){
 
 	char *ret = NULL;
 
-	if(strcmp(camp, "dataAtiv") == 0){ 
+	if(strcmp(camp, "dataAtiv") == 0){
     ret = malloc(sizeof(char)*10);
     strcpy(ret, reg->dataAtiv);
 
-  }else if(strcmp(camp, "uf") == 0){ 
+  }else if(strcmp(camp, "uf") == 0){
     ret = malloc(sizeof(char)*2);
     strcpy(ret, reg->dataAtiv);
 
-  }else if(strcmp(camp, "nomeEscola") == 0){ 
+  }else if(strcmp(camp, "nomeEscola") == 0){
   	ret = malloc(sizeof(char)*reg->tam_nomeEscola);
 		for (int i = 0; i < reg->tam_nomeEscola; ++i) ret[i] = reg->nomeEscola[i];
-		
 
-  }else if(strcmp(camp, "municipio") == 0){ 
+
+  }else if(strcmp(camp, "municipio") == 0){
     ret = malloc(sizeof(char)*reg->tam_municipio);
 		for (int i = 0; i < reg->tam_municipio; ++i) ret[i] = reg->municipio[i];
-		 
-  }else if(strcmp(camp, "prestadora") == 0){ 
+
+  }else if(strcmp(camp, "prestadora") == 0){
     ret = malloc(sizeof(char)*reg->tam_prestadora);
 		for (int i = 0; i < reg->tam_prestadora; ++i) ret[i] = reg->prestadora[i];
-		
-  } 
-  return ret; 	
+
+  }
+  return ret;
 
 }
 /** \brief Funcao que recebe um RNN para mudar atualizar os dados desse registro.
@@ -673,5 +673,151 @@ int updateReg(int RRN, int campo1, char *campo2, char *campo3, char *campo4, cha
 	setStatus(binFile, 1);
   fclose(binFile);
 	return 1;
+}
+
+
+/** \brief Funcao que compacta o arquivo de dados de forma eficiente
+  *
+	* \return 0 falha ao abrir aquivo, 1 se compactou corretamente
+	*/
+int compact(){
+
+	//abre o arquivo principal e cria um outro para fazer a compactacao
+	FILE *binFile = fopen("data.dat", "rb+");
+	//falha ao abrir o arquivo
+	if(!binFile) return 0;
+	FILE *newBinFile = fopen("data2.dat", "wb+");
+
+	//ajuda a colocar o HEADER no arquivo novo
+	unsigned char status = '0';
+	int topStack = -1;
+
+	setStatus(binFile, '0');
+
+	//coloca o HEADER no novo arquivo
+	fseek(newBinFile, 0, SEEK_SET);
+	fwrite(&status, 1, 1, newBinFile);
+	fwrite(&topStack, sizeof(int), 1, newBinFile);
+	fseek(newBinFile, HEADERSIZE, SEEK_SET);
+
+	//RRNs para cada arquivo
+	int RRN = 0;
+	int RRN2 = 0;
+
+	//guarda em size o tamanho do arquivo
+	fseek(binFile, 0, SEEK_END);
+	long int size = ftell(binFile);
+	fseek(binFile, HEADERSIZE, SEEK_SET);
+
+	//loop que ocorre do comeco+HEADER ate o fim do arquivo
+	while(ftell(binFile) <= size) {
+
+		//verifica se o registro eh valido
+		if(isValidReg(RRN, binFile)){
+
+			// aloca as memórias para cada campo
+			registro *reg = malloc(sizeof(registro));
+			reg->nomeEscola = NULL;
+			reg->municipio = NULL;
+			reg->prestadora = NULL;
+			reg->dataAtiv = malloc(10*sizeof(char));
+			reg->uf = malloc(2*sizeof(char));
+
+			// Le os dados do arquivo binario e salva nas variaveis
+			fread(&reg->codINEP, sizeof(int), 1, binFile);
+			fread(reg->dataAtiv, 10 * sizeof(char), 1, binFile);
+			fread(reg->uf, 2 * sizeof(char), 1, binFile);
+			fread(&reg->tam_nomeEscola, sizeof(int), 1, binFile);
+			reg->nomeEscola = realloc(reg->nomeEscola, reg->tam_nomeEscola);
+			fread(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, binFile);
+			fread(&reg->tam_municipio, sizeof(int), 1, binFile);
+			reg->municipio = realloc(reg->municipio, reg->tam_municipio);
+			fread(reg->municipio, reg->tam_municipio * sizeof(char), 1, binFile);
+			fread(&reg->tam_prestadora, sizeof(int), 1, binFile);
+			reg->prestadora = realloc(reg->prestadora, reg->tam_prestadora);
+			fread(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
+
+			//guarda no novo arquivo
+			fseek(newBinFile, HEADERSIZE + RRN2 * REGSIZE, SEEK_SET);
+			RRN2++;
+
+			fwrite(&reg->codINEP, sizeof(int), 1, newBinFile);
+			fwrite(reg->dataAtiv, DATAATIVSIZE, 1, newBinFile);
+			fwrite(reg->uf, UFSIZE, 1, newBinFile);
+			fwrite(&reg->tam_nomeEscola, sizeof(int), 1, newBinFile);
+			fwrite(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, newBinFile);
+			fwrite(&reg->tam_municipio, sizeof(int), 1, newBinFile);
+			fwrite(reg->municipio, reg->tam_municipio * sizeof(char), 1, newBinFile);
+			fwrite(&reg->tam_prestadora, sizeof(int), 1, newBinFile);
+			fwrite(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, newBinFile);
+			// fprintf(newBinFile, "\n");
+
+			freeRegister(&reg);
+		}
+
+		RRN++;	//sendo valido ou nao, passa para poximo registro
+		fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
+
+	}
+
+	//remove o arquivo antigo e salva o novo com o nome do antigo
+	remove("data.dat");
+	rename("data2.dat", "data.dat");
+
+	fclose(newBinFile);
+	fclose(binFile);
+
+	return 1;
+
+}
+
+/** \brief Funcao que retorna a pilha de registros deletados do arquivo
+  *
+  * \params - sizeStack = tamanho da pilha que vai sendo incrementado a cada desempilhamento
+  *
+	* \return NULL falha ao abrir aquivo ou o vetor que guarda os RRNs da pilha
+	*/
+int* showStack(int* sizeStack){
+
+	int topStack, *stack;		//guarda o topo da pilha, vetor que guarda os RRNs dos registros deletados
+
+	FILE *binFile = fopen("data.dat", "rb+");
+
+	//verefica se o arquivo eh valido
+	if(!binFile) return NULL;
+	setStatus(binFile, '0');
+
+	//guarda o topo da pilha
+	fread(&topStack, sizeof(int), 1, binFile);
+	stack = (int*)malloc(((*sizeStack) + 1) * sizeof(int));
+	stack[*sizeStack] = topStack;
+	(*sizeStack) = (*sizeStack) + 1;
+
+	//verifica se a pilha está vazia
+	if(topStack == -1){
+		fclose(binFile);
+		return stack;
+	}
+	else{
+		while(1){
+			//busca conforme o topo da pilha encontrado e guarda a continuacao da pilha nessa variavel
+			fseek(binFile, HEADERSIZE + topStack * REGSIZE + sizeof(int), SEEK_SET);
+			fread(&topStack, sizeof(int), 1, binFile);
+
+			//condição de parada do loop
+			if(topStack == -1){
+				fclose(binFile);
+				return stack;
+			}
+
+			//se nao entrou na condicao de parada, ele eh guardado no vetor de retorno
+			stack = (int*)realloc(stack, (*sizeStack + 1) * sizeof(int));
+			stack[*sizeStack] = topStack;
+			(*sizeStack) = (*sizeStack) + 1;
+		}
+	}
+
+	setStatus(binFile, '0');
+	fclose(binFile);
 
 }
