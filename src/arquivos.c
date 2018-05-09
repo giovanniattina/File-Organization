@@ -42,18 +42,18 @@ void setStatus(FILE *binFile, unsigned char status){
   * \return field - Campo lido
   */
 char *getField(FILE *fileName){
-  char c = 0;
-  int contador = 0;
-  char *field = NULL;
+	char c = 0;
+	int contador = 0;
+	char *field = NULL;
 
-  do{ //percorre toda a linha até achar o delimitador
-    c = fgetc(fileName);
-    field = (char *)realloc(field, sizeof(char)*(contador+1));
-    field[contador++] = c;
-  } while(c != 10 && c != ';');
+	do{ //percorre toda a linha até achar o delimitador
+		c = fgetc(fileName);
+		field = (char *)realloc(field, sizeof(char)*(contador+1));
+		field[contador++] = c;
+	} while(c != 10 && c != ';');
 
-  field[contador-1] = '\0';
-  return field; //retorna o campo para ser salvo
+	field[contador-1] = '\0';
+	return field; //retorna o campo para ser salvo
 }
 
 /** \brief Funcao que le o arquivo CSV.
@@ -63,17 +63,17 @@ char *getField(FILE *fileName){
   * \return 0 - erro ao abrir arquivo ou numReg - Quantidade de registros.
   */
 int readFile(char *fileName){
-  int size, numReg = 0, topoPilha = -1;
-  char zero = '0', *codINEP;
-  FILE *csvFile = fopen(fileName, "r");
-  FILE *binFile = fopen("data.dat", "wb");
+	int size, numReg = 0, topoPilha = -1;
+	char zero = '0', *codINEP;
+	FILE *csvFile = fopen(fileName, "r");
+	FILE *binFile = fopen("data.dat", "wb");
 
-  if(!csvFile){
+	if(!csvFile){
 		if(binFile)
 			fclose(binFile);
 		return 0;
 	}
-  if(!binFile){
+	if(!binFile){
 		if(csvFile)
 			fclose(csvFile);
 		return 0;
@@ -179,7 +179,7 @@ unsigned char isCorruptedFile(FILE *binFile){
 	*\return 0 falha ao abrir aquivo ou -1 nenhum registro encotrado ou 1 registros encontrados
   */
 int showAll(){
-  int size, RRN = 0;
+	int size, RRN = 0;
 	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
@@ -191,13 +191,13 @@ int showAll(){
 
 	setStatus(binFile, 0);
 
-  fseek(binFile, 0, SEEK_END);
+ 	fseek(binFile, 0, SEEK_END);
 	size = ftell(binFile);
 	fseek(binFile, HEADERSIZE, SEEK_SET);
 
 	int tamReg = 0;
 
-  while(ftell(binFile) != size) {
+ 	while(ftell(binFile) != size) {
 
 		if(isValidReg(RRN, binFile)){
 
@@ -226,13 +226,13 @@ int showAll(){
 			printReg(reg);
 
 			freeRegister(&reg);
-  	}
+  		}
 		RRN++;	//sendo valido ou nao, passa para poximo registro
 		fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
 	}
 
 	setStatus(binFile, 1);
-  fclose(binFile);
+	fclose(binFile);
 
 	return (RRN > 0) ? 1 : -1;
 
@@ -246,9 +246,9 @@ int showAll(){
 	*\return 0 - falha ao abrir aquivo ou -1 - nenhum registro encotrado ou 1 - registros encontrados
   */
 int findRRN(int RRN){
-  int size;
+	int size;
 
-  FILE *binFile = fopen("data.dat", "rb+");
+	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
 	if(isCorruptedFile(binFile)){
@@ -257,8 +257,8 @@ int findRRN(int RRN){
 	}
 	setStatus(binFile, 0);
 
-  // busca o byte offset do registro procurado no arquivo
-  fseek(binFile, HEADERSIZE + RRN * REGSIZE, SEEK_SET);
+	// busca o byte offset do registro procurado no arquivo
+	fseek(binFile, HEADERSIZE + RRN * REGSIZE, SEEK_SET);
 
 	if(!isValidReg(RRN, binFile)){//RRN removido ou grande demais
 		// normaliza status e finaliza
@@ -267,25 +267,25 @@ int findRRN(int RRN){
 		return -1;
 	}
 
-  registro *reg = calloc(sizeof(registro), 1);
-  reg->dataAtiv = malloc(DATAATIVSIZE*sizeof(char));
-  reg->uf = malloc(UFSIZE*sizeof(char));
+	registro *reg = calloc(sizeof(registro), 1);
+	reg->dataAtiv = malloc(DATAATIVSIZE*sizeof(char));
+	reg->uf = malloc(UFSIZE*sizeof(char));
 
-  // Le os dados do arquivo binario e salva nas variaveis
-  fread(&reg->codINEP, sizeof(int), 1, binFile);
-  fread(reg->dataAtiv, DATAATIVSIZE * sizeof(char), 1, binFile);
-  fread(reg->uf, UFSIZE * sizeof(char), 1, binFile);
-  fread(&reg->tam_nomeEscola, sizeof(int), 1, binFile);
-  reg->nomeEscola = realloc(reg->nomeEscola, reg->tam_nomeEscola);
-  fread(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, binFile);
-  fread(&reg->tam_municipio, sizeof(int), 1, binFile);
-  reg->municipio = realloc(reg->municipio, reg->tam_municipio);
-  fread(reg->municipio, reg->tam_municipio * sizeof(char), 1, binFile);
-  fread(&reg->tam_prestadora, sizeof(int), 1, binFile);
-  reg->prestadora = realloc(reg->prestadora, reg->tam_prestadora);
-  fread(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
+	// Le os dados do arquivo binario e salva nas variaveis
+	fread(&reg->codINEP, sizeof(int), 1, binFile);
+	fread(reg->dataAtiv, DATAATIVSIZE * sizeof(char), 1, binFile);
+	fread(reg->uf, UFSIZE * sizeof(char), 1, binFile);
+	fread(&reg->tam_nomeEscola, sizeof(int), 1, binFile);
+	reg->nomeEscola = realloc(reg->nomeEscola, reg->tam_nomeEscola);
+	fread(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, binFile);
+	fread(&reg->tam_municipio, sizeof(int), 1, binFile);
+	reg->municipio = realloc(reg->municipio, reg->tam_municipio);
+	fread(reg->municipio, reg->tam_municipio * sizeof(char), 1, binFile);
+	fread(&reg->tam_prestadora, sizeof(int), 1, binFile);
+	reg->prestadora = realloc(reg->prestadora, reg->tam_prestadora);
+	fread(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
 
-  printReg(reg);
+	printReg(reg);
 
 	setStatus(binFile, 1);
 	fclose(binFile);
@@ -299,10 +299,10 @@ int findRRN(int RRN){
   * \param *reg - O registro a ser impresso.
   */
 void printReg(registro *reg){
-  int i;
+	int i;
 
 	//imprime campos de tamanho fixo
-  printf("%d ", reg->codINEP);
+	printf("%d ", reg->codINEP);
 	//como nao ha '\0', deve-se imprimir um caracter por vez
 	for(i = 0; i<DATAATIVSIZE; i++)
 		printf("%c", reg->dataAtiv[i]);
@@ -314,27 +314,28 @@ void printReg(registro *reg){
 
 	//imprime campos de tamanho variavel e indicadores de tamanho
 	printf("%d ", reg->tam_nomeEscola);
-  if (reg->tam_nomeEscola) {
-    for(i = 0; i < reg->tam_nomeEscola; i++){
-      printf("%c", reg->nomeEscola[i]);
-    }
-    printf(" ");
-  }
+	if (reg->tam_nomeEscola) {
+		for(i = 0; i < reg->tam_nomeEscola; i++){
+			printf("%c", reg->nomeEscola[i]);
+    	}
+		printf(" ");
+	}
 
 	printf("%d ", reg->tam_municipio);
-  if (reg->tam_municipio) {
-    for(i = 0; i < reg->tam_municipio; i++){
-      printf("%c", reg->municipio[i]);
-    }
-    printf(" ");
-  }
+	
+	if (reg->tam_municipio) {
+		for(i = 0; i < reg->tam_municipio; i++){
+			printf("%c", reg->municipio[i]);
+		}
+		printf(" ");
+	}
 
 	printf("%d ", reg->tam_prestadora);
-  if (reg->tam_prestadora) {
-    for(i = 0; i < reg->tam_prestadora; i++){
-      printf("%c", reg->prestadora[i]);
-    }
-  }
+	if (reg->tam_prestadora) {
+		for(i = 0; i < reg->tam_prestadora; i++){
+			printf("%c", reg->prestadora[i]);
+		}
+	}
 	printf("\n");
 }
 
@@ -384,6 +385,44 @@ int removeReg( int RRN){
 	return 1;
 }
 
+
+void writeReg(FILE *binFile, int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *municipio, char *prestadora){
+
+	int sizeEsc, sizePrest, sizeMun, tamReg;
+	char zero = '0';
+
+	// escrevendo campos fixos passados
+	fwrite(&codINEP, sizeof(int), 1, binFile);
+
+	if(strlen(dataAtiv) == 0)
+		fwrite("0000000000", DATAATIVSIZE, 1, binFile);
+	else
+		fwrite(dataAtiv, DATAATIVSIZE, 1, binFile);
+	
+	if(strlen(uf) == 0)
+		fwrite("00", UFSIZE, 1, binFile);
+	else
+		fwrite(uf, UFSIZE, 1, binFile);
+
+	//escrevendo campos variaveis e indicadores de tamanho
+	sizeEsc = strlen(nomeEscola);
+	fwrite(&sizeEsc, sizeof(int), 1, binFile);
+	fwrite(nomeEscola, sizeEsc, 1, binFile);
+
+	sizeMun = strlen(municipio);
+	fwrite(&sizeMun, sizeof(int), 1, binFile);
+	fwrite(municipio, sizeMun, 1, binFile);
+
+	sizePrest = strlen(prestadora);
+	fwrite(&sizePrest, sizeof(int), 1, binFile);
+	fwrite(prestadora, sizePrest, 1, binFile);
+
+	//preenchendo com 0 o que sobrou de espaco no registro
+	tamReg = 28 + sizeEsc + sizeMun + sizePrest;
+	for (size_t i = 0; i < REGSIZE - tamReg; i++)
+		fwrite(&zero, sizeof(char), 1, binFile);
+}
+
 /** \brief Funcao que insere um novo registro reaproveitando espaco das remocoes logicas.
   *
   * \params - dados do registro a ser inserido
@@ -392,8 +431,7 @@ int removeReg( int RRN){
 	*/
 int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *municipio, char *prestadora){
 
-	int topoPilha, novoTopo, sizeEsc, sizeMun, sizePrest, tamReg;
-	char zero = '0';
+	int topoPilha, novoTopo;
 	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
@@ -419,51 +457,21 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	else	//insere no final
 		fseek(binFile, 0, SEEK_END);
 
-
-	// escrevendo campos fixos passados
-	fwrite(&codINEP, sizeof(int), 1, binFile);
-
-	if(strlen(dataAtiv) == 0)
-		fwrite("0000000000", DATAATIVSIZE, 1, binFile);
-	else
-		fwrite(dataAtiv, DATAATIVSIZE, 1, binFile);
-
-	if(strlen(uf) == 0)
-		fwrite("00", UFSIZE, 1, binFile);
-	else
-		fwrite(uf, UFSIZE, 1, binFile);
-
-	//escrevendo campos variaveis e indicadores de tamanho
-	sizeEsc = strlen(nomeEscola);
-	fwrite(&sizeEsc, sizeof(int), 1, binFile);
-	fwrite(nomeEscola, sizeEsc, 1, binFile);
-
-	sizeMun = strlen(municipio);
-	fwrite(&sizeMun, sizeof(int), 1, binFile);
-	fwrite(municipio, sizeMun, 1, binFile);
-
-	sizePrest = strlen(prestadora);
-	fwrite(&sizePrest, sizeof(int), 1, binFile);
-	fwrite(prestadora, sizePrest, 1, binFile);
-
-	//preenchendo com 0 o que sobrou de espaco no registro
-	tamReg = 28 + sizeEsc + sizeMun + sizePrest;
-	for (size_t i = 0; i < REGSIZE - tamReg; i++)
-		fwrite(&zero, sizeof(char), 1, binFile);
+	writeReg(binFile,codINEP, dataAtiv, uf, nomeEscola, municipio, prestadora);
 
 	setStatus(binFile, 1);
 	fclose(binFile);
 
 	return 1;
 }
-/** \brief Funcao que recebe um campo e um valor, e imprime todos os requistro que tiverem o valor procurado no campo pasado
+/** \brief Funcao que recebe um campo e um valor, e imprime todos os registros que tiverem o valor procurado no campo passado
   *
   * \params - campo e valor procurado
   *
 	* \return 0 falha ao abrir aquivo ou -1 nenhum registro encotrado ou 1 registros encontrados
 	*/
-int search(char  *campName, char *value){
-  int size, RRN = 0;
+int search(char  *fieldName, char *value){
+	int size, RRN = 0, tamReg = 0, found = -1;
 	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
@@ -475,137 +483,98 @@ int search(char  *campName, char *value){
 
 	setStatus(binFile, 0);
 
-  fseek(binFile, 0, SEEK_END);
+	fseek(binFile, 0, SEEK_END);
 	size = ftell(binFile);
 	fseek(binFile, HEADERSIZE, SEEK_SET);
 
-	int tamReg = 0;
 
-  while(ftell(binFile) != size) {
+	while(ftell(binFile) != size) {
 
 		if(isValidReg(RRN, binFile)){
 
 			// aloca as memórias para cada campo
-			registro *reg = malloc(sizeof(registro));
-			reg->nomeEscola = NULL;
-			reg->municipio = NULL;
-			reg->prestadora = NULL;
-			reg->dataAtiv = malloc(10*sizeof(char));
-			reg->uf = malloc(2*sizeof(char));
+			registro *reg = calloc(sizeof(registro), 1);
+			reg->dataAtiv = calloc(10*sizeof(char) + 1, 1);
+			reg->uf = calloc(2*sizeof(char) +1, 1);
 
 			// Le os dados do arquivo binario e salva nas variaveis
 			fread(&reg->codINEP, sizeof(int), 1, binFile);
 			fread(reg->dataAtiv, 10 * sizeof(char), 1, binFile);
 			fread(reg->uf, 2 * sizeof(char), 1, binFile);
 			fread(&reg->tam_nomeEscola, sizeof(int), 1, binFile);
-			reg->nomeEscola = realloc(reg->nomeEscola, reg->tam_nomeEscola);
+			//ja coloca \0 na posicao extra, permitindo comparar strings
+			reg->nomeEscola = calloc(reg->tam_nomeEscola +1, 1);	
 			fread(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, binFile);
 			fread(&reg->tam_municipio, sizeof(int), 1, binFile);
-			reg->municipio = realloc(reg->municipio, reg->tam_municipio);
+			reg->municipio = calloc(reg->tam_municipio +1, 1);
 			fread(reg->municipio, reg->tam_municipio * sizeof(char), 1, binFile);
 			fread(&reg->tam_prestadora, sizeof(int), 1, binFile);
-			reg->prestadora = realloc(reg->prestadora, reg->tam_prestadora);
+			reg->prestadora = calloc(reg->tam_prestadora +1, 1);
 			fread(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
-			if(checkToPrint(reg, campName, value) == 1) printReg(reg);
 
+			if(checkToPrint(reg, fieldName, value) == 1){
+				printReg(reg);
+				found = 1;
+			}
 			freeRegister(&reg);
-  	}
+  		}
 		RRN++;	//sendo valido ou nao, passa para poximo registro
 		fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
 	}
 
 	setStatus(binFile, 1);
-  fclose(binFile);
+	fclose(binFile);
 
-	return (RRN > 0) ? 1 : -1;
+	return found;
 
 	return 1;
-
-
 }
+
 /** \brief Funcao que verifica se o registro lido tem o campo e o valor do campo é igual que o usuario esta buscando.
   *
   * \params - registro lido, campo desejado e valor procurado
   *
-	* \return 0 se nao tiver o valor procurado no campo, 1 se achar
-	*/
-int checkToPrint(registro *reg, char *camp, char *value){
-
-  if(strcmp(camp, "codINEP") == 0){
-    if(reg->codINEP == atoi(value)){
-      return 1;
-    }
-  }else if(strcmp(camp, "dataAtiv") == 0){
-    if(strcmp(reg->dataAtiv, value) == 0){
-      return 1;
-    }
-  }else if(strcmp(camp, "uf") == 0){
-    if(strcmp(reg->uf, value) == 0){
-      return 1;
-    }
-  }else if(strcmp(camp, "nomeEscola") == 0){
-    if(strcmp(stripCamp(reg, camp), value) == 0){
-
-      return 1;
-    }
-  }else if(strcmp(camp, "municipio") == 0){
-    if(strcmp(stripCamp(reg, camp), value) == 0){
-      return 1;
-    }
-  }else if(strcmp(camp, "prestadora") == 0){
-    if(strcmp(stripCamp(reg, camp), value) == 0){
-      return 1;
-    }
-  }
-  return 0;
+  * \return 0 se nao tiver o valor procurado no campo, 1 se achar
+  */
+int checkToPrint(registro *reg, char *field, char *value){
+	
+	char dataAtivNull[DATAATIVSIZE +1] = "0000000000";
+	char ufNull[UFSIZE+1] = "00";
+	
+	if(strcmp(field, "codINEP") == 0)
+		//verificando se o campo eh igual
+		return reg->codINEP == atoi(value);
+	
+	else if(strcmp(field, "dataAtiv") == 0)	
+		//considerando a possibilidade de serem nulos
+		return !strcmp(reg->dataAtiv, value) || (!strlen(value) && !strcmp(dataAtivNull, reg->dataAtiv));
+	
+	else if(strcmp(field, "uf") == 0)
+		return !strcmp(reg->uf, value) || (!strlen(value) && !strcmp(ufNull, reg->uf));
+	
+	else if(strcmp(field, "nomeEscola") == 0)
+		return !strcmp(reg->nomeEscola, value) || ( !strlen(value) && !reg->tam_nomeEscola);
+	
+	else if(strcmp(field, "municipio") == 0)
+		return !strcmp(reg->municipio, value) || ( !strlen(value) && !reg->tam_municipio);
+	
+	else if(strcmp(field, "prestadora") == 0)
+		return !strcmp(reg->prestadora, value) || ( !strlen(value) && !reg->tam_prestadora);
+	
+	return 0;
 }
 
-/** \brief Funcao que retorna um valor do campo com apenas o valors de bytes de dados.
-  *
-  * \params - endereço com os dados do registo salvo e o campo que quer dar strip
-  *
-	* \return string ou null se nao tiver nada no campo
-	*/
-char *stripCamp(registro *reg, char *camp){
-
-	char *ret = NULL;
-
-	if(strcmp(camp, "dataAtiv") == 0){
-    ret = malloc(sizeof(char)*10);
-    strcpy(ret, reg->dataAtiv);
-
-  }else if(strcmp(camp, "uf") == 0){
-    ret = malloc(sizeof(char)*2);
-    strcpy(ret, reg->dataAtiv);
-
-  }else if(strcmp(camp, "nomeEscola") == 0){
-  	ret = malloc(sizeof(char)*reg->tam_nomeEscola);
-		for (int i = 0; i < reg->tam_nomeEscola; ++i) ret[i] = reg->nomeEscola[i];
-
-
-  }else if(strcmp(camp, "municipio") == 0){
-    ret = malloc(sizeof(char)*reg->tam_municipio);
-		for (int i = 0; i < reg->tam_municipio; ++i) ret[i] = reg->municipio[i];
-
-  }else if(strcmp(camp, "prestadora") == 0){
-    ret = malloc(sizeof(char)*reg->tam_prestadora);
-		for (int i = 0; i < reg->tam_prestadora; ++i) ret[i] = reg->prestadora[i];
-
-  }
-  return ret;
-
-}
 /** \brief Funcao que recebe um RNN para mudar atualizar os dados desse registro.
   *
   * \params - RNN do registro para atualizar e os 6 novos valores para o campo
   *
-	* \return 0 falha ao abrir aquivo ou -1 nenhum registro encotrado ou 1 registros encontrados
-	*/
+  * \return 0 falha ao abrir aquivo ou -1 nenhum registro encotrado ou 1 registros encontrados
+*/
 
-int updateReg(int RRN, int campo1, char *campo2, char *campo3, char *campo4, char *campo5, char *campo6){
+int updateReg(int RRN, int codINEP, char* dataAtiv, char *uf, char *nomeEscola, char *municipio, char *prestadora){
 	int size;
 	char zero = '0';
-  FILE *binFile = fopen("data.dat", "rb+");
+	FILE *binFile = fopen("data.dat", "rb+");
 
 	if(!binFile) return 0;
 	if(isCorruptedFile(binFile)){
@@ -614,8 +583,8 @@ int updateReg(int RRN, int campo1, char *campo2, char *campo3, char *campo4, cha
 	}
 	setStatus(binFile, 0);
 
-  // busca o byte offset do registro procurado no arquivo
-  fseek(binFile, HEADERSIZE + RRN * REGSIZE, SEEK_SET);
+	// busca o byte offset do registro procurado no arquivo
+	fseek(binFile, HEADERSIZE + RRN * REGSIZE, SEEK_SET);
 
 	if(!isValidReg(RRN, binFile)){//RRN removido ou grande demais
 		// normaliza status e finaliza
@@ -624,146 +593,73 @@ int updateReg(int RRN, int campo1, char *campo2, char *campo3, char *campo4, cha
 		return -1;
 	}
 
-  registro *reg = calloc(sizeof(registro), 1);
-  reg->dataAtiv = malloc(DATAATIVSIZE*sizeof(char));
-  reg->uf = malloc(UFSIZE*sizeof(char));
+	writeReg(binFile,codINEP, dataAtiv, uf, nomeEscola, municipio, prestadora);
 
-  //cria registro para salvar
-
-  reg->codINEP = campo1;
-  strcpy(reg->dataAtiv, campo2);
-  strcpy(reg->uf, campo3);
-  reg->tam_nomeEscola = strlen(campo4);
-  reg->nomeEscola = malloc(reg->tam_nomeEscola*sizeof(char));
-  strcpy(reg->nomeEscola, campo4);
-  reg->tam_municipio = strlen(campo5);
-  reg->municipio = malloc(reg->tam_municipio*sizeof(char));
-  strcpy(reg->municipio, campo5);
-  reg->tam_prestadora = strlen(campo6);
-  reg->prestadora = malloc(reg->tam_prestadora*sizeof(char));
-  strcpy(reg->prestadora, campo6);
-
-
-// Salva todos os campos no arquivo binario
-	fwrite(&reg->codINEP, sizeof(int), 1, binFile);
-	if (strlen(reg->dataAtiv)) {
-		fwrite(reg->dataAtiv, DATAATIVSIZE*sizeof(char), 1, binFile);
-	} else {
-		fwrite("0000000000", 10*sizeof(char), 1, binFile);
-	}
-	if (strlen(reg->uf)) {
-		fwrite(reg->uf, UFSIZE*sizeof(char), 1, binFile);
-	} else {
-		fwrite("00", 2*sizeof(char), 1, binFile);
-	}
-	fwrite(&reg->tam_nomeEscola, sizeof(int), 1, binFile);
-	fwrite(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, binFile);
-	fwrite(&reg->tam_municipio, sizeof(int), 1, binFile);
-	fwrite(reg->municipio, reg->tam_municipio * sizeof(char), 1, binFile);
-	fwrite(&reg->tam_prestadora, sizeof(int), 1, binFile);
-	fwrite(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
-
-	int tamReg = 28 + reg->tam_prestadora + reg->tam_municipio + reg->tam_nomeEscola;
-
-	for (size_t i = 0; i < REGSIZE - tamReg; i++) { // preenche os bytes que estão sobrando até chegar no tamanho do registro
-		fwrite(&zero, sizeof(char), 1, binFile);
-	}
-
-	freeRegister(&reg);
 	setStatus(binFile, 1);
-  fclose(binFile);
+	fclose(binFile);
 	return 1;
 }
 
 
 /** \brief Funcao que compacta o arquivo de dados de forma eficiente
   *
-	* \return 0 falha ao abrir aquivo, 1 se compactou corretamente
+	* \return 0 falha ao abrir aquivo, 1 se compactou corretamente,
 	*/
 int compact(){
 
+	int topStack;
+	
 	//abre o arquivo principal e cria um outro para fazer a compactacao
 	FILE *binFile = fopen("data.dat", "rb+");
 	//falha ao abrir o arquivo
 	if(!binFile) return 0;
+
+	setStatus(binFile, 0);
+	fread(&topStack, sizeof(int), 1, binFile);
+
+	if( topStack == -1){	//arquivo nao possui registros removidos
+		setStatus(binFile, 1);
+		fclose(binFile);
+		return 1;
+	}
+	
+	//topo do arquivo novo
+	topStack = -1;
+
 	FILE *newBinFile = fopen("data2.dat", "wb+");
-
-	//ajuda a colocar o HEADER no arquivo novo
-	unsigned char status = '0';
-	int topStack = -1;
-
-	setStatus(binFile, '0');
+	if(!newBinFile) return 0;
 
 	//coloca o HEADER no novo arquivo
-	fseek(newBinFile, 0, SEEK_SET);
-	fwrite(&status, 1, 1, newBinFile);
+	setStatus(newBinFile, 0);
 	fwrite(&topStack, sizeof(int), 1, newBinFile);
-	fseek(newBinFile, HEADERSIZE, SEEK_SET);
 
-	//RRNs para cada arquivo
-	int RRN = 0;
-	int RRN2 = 0;
+	int RRN = 0;// controla posicao de copia no arquivo 
 
 	//guarda em size o tamanho do arquivo
 	fseek(binFile, 0, SEEK_END);
 	long int size = ftell(binFile);
 	fseek(binFile, HEADERSIZE, SEEK_SET);
+	
+	//armazenara registro a ser copiado
+	unsigned char regInfo[REGSIZE];
 
 	//loop que ocorre do comeco+HEADER ate o fim do arquivo
 	while(ftell(binFile) <= size) {
 
 		//verifica se o registro eh valido
 		if(isValidReg(RRN, binFile)){
-
-			// aloca as memórias para cada campo
-			registro *reg = malloc(sizeof(registro));
-			reg->nomeEscola = NULL;
-			reg->municipio = NULL;
-			reg->prestadora = NULL;
-			reg->dataAtiv = malloc(10*sizeof(char));
-			reg->uf = malloc(2*sizeof(char));
-
-			// Le os dados do arquivo binario e salva nas variaveis
-			fread(&reg->codINEP, sizeof(int), 1, binFile);
-			fread(reg->dataAtiv, 10 * sizeof(char), 1, binFile);
-			fread(reg->uf, 2 * sizeof(char), 1, binFile);
-			fread(&reg->tam_nomeEscola, sizeof(int), 1, binFile);
-			reg->nomeEscola = realloc(reg->nomeEscola, reg->tam_nomeEscola);
-			fread(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, binFile);
-			fread(&reg->tam_municipio, sizeof(int), 1, binFile);
-			reg->municipio = realloc(reg->municipio, reg->tam_municipio);
-			fread(reg->municipio, reg->tam_municipio * sizeof(char), 1, binFile);
-			fread(&reg->tam_prestadora, sizeof(int), 1, binFile);
-			reg->prestadora = realloc(reg->prestadora, reg->tam_prestadora);
-			fread(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, binFile);
-
-			//guarda no novo arquivo
-			fseek(newBinFile, HEADERSIZE + RRN2 * REGSIZE, SEEK_SET);
-			RRN2++;
-
-			fwrite(&reg->codINEP, sizeof(int), 1, newBinFile);
-			fwrite(reg->dataAtiv, DATAATIVSIZE, 1, newBinFile);
-			fwrite(reg->uf, UFSIZE, 1, newBinFile);
-			fwrite(&reg->tam_nomeEscola, sizeof(int), 1, newBinFile);
-			fwrite(reg->nomeEscola, reg->tam_nomeEscola * sizeof(char), 1, newBinFile);
-			fwrite(&reg->tam_municipio, sizeof(int), 1, newBinFile);
-			fwrite(reg->municipio, reg->tam_municipio * sizeof(char), 1, newBinFile);
-			fwrite(&reg->tam_prestadora, sizeof(int), 1, newBinFile);
-			fwrite(reg->prestadora, reg->tam_prestadora * sizeof(char), 1, newBinFile);
-			// fprintf(newBinFile, "\n");
-
-			freeRegister(&reg);
+			fread(regInfo, REGSIZE, 1, binFile);
+			fwrite(regInfo, REGSIZE, 1, newBinFile);
 		}
-
 		RRN++;	//sendo valido ou nao, passa para poximo registro
 		fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
-
 	}
 
 	//remove o arquivo antigo e salva o novo com o nome do antigo
 	remove("data.dat");
 	rename("data2.dat", "data.dat");
-
+	
+	setStatus(newBinFile, 1);
 	fclose(newBinFile);
 	fclose(binFile);
 
@@ -819,5 +715,4 @@ int* showStack(int* sizeStack){
 
 	setStatus(binFile, '0');
 	fclose(binFile);
-
 }
