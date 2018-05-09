@@ -227,7 +227,7 @@ int showAll(){
 			printReg(reg);
 
 			freeRegister(&reg);
-		}
+		
   		}
 		RRN++;	//sendo valido ou nao, passa para poximo registro
 		fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
@@ -528,8 +528,6 @@ int search(char  *fieldName, char *value){
 	fclose(binFile);
 
 	return found;
-
-	return 1;
 }
 
 /** \brief Funcao que verifica se o registro lido tem o campo e o valor do campo é igual que o usuario esta buscando.

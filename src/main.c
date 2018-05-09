@@ -82,45 +82,6 @@ int main(int argc, char **argv){
 				printf("Registro inexistente.\n");
 			break;
 
-		case 5:		//remocao logica de registro com uso de pilha
-			if(argc < 3){
-				printf("Uso: %s 5 RRN\n", argv[0]);
-				return EXIT_FAILURE;
-			}
-			RRN = atoi(argv[2]);
-
-	    case 3:		//recuperar registros por busca de campo
-
-		    if(argc < 4){
-		    	printf("Uso: %s 3 'NomeDoCampo' valorDoCampo\n", argv[0]);
-		    	return EXIT_FAILURE;
-		    }
-		    strcpy(campo, argv[2]);
-		    valor = argv[3];
-
-		    funcResult = search(campo, valor);
-			if(!funcResult)			//retornar 0
-			   	printf("Falha no processamento do arquivo\n");
-		  	else if (funcResult < 0)		//retornar negativo
-		  		printf("Registro inexistente\n");
-
-		  	break;			
-
-	    case 4:		//recuperar registro por rrn
-
-		    if(argc < 3){
-		    	printf("Uso: %s 4 RRN\n", argv[0]);
-		    	return EXIT_FAILURE;
-		    }
-		    RRN = atoi(argv[2]);
-
-		    funcResult = findRRN(RRN);
-		    if(!funcResult)
-		    	printf("Falha no processamento do arquivo\n");
-		    else if (funcResult < 0)
-		    	printf("Registro inexistente\n");
-
-		    break;			
 
 	    case 5:		//remocao logica de registro com uso de pilha
 
