@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "arquivos.h"
+#include "BtreeIndex.h"
 
 #define REGSIZE 87
 #define HEADERSIZE 5
@@ -33,6 +34,21 @@ void freeRegister(registro **reg){
 void setStatus(FILE *binFile, unsigned char status){
 	rewind(binFile);
 	fwrite(&status, 1, 1, binFile);
+}
+
+/** \brief Funcao que verifica o status de um arquivo, permitindo saber se esta corrompido ou nao.
+	*				Ao final, o ponteiro de arquivo passa a apontar o inicio do arquivo.
+  *
+	*\param FILE *binFile - ponteiro para o arquivo que sera verificado
+	*
+	*\return 1 - arquivo corrompido ou 0 - arquivo ok
+  */
+unsigned char isCorruptedFile(FILE *binFile){
+	unsigned char status;
+	rewind(binFile);
+	fread(&status, 1, 1, binFile);
+	rewind(binFile);
+	return !status;
 }
 
 /** \brief Funcao que separa a linha lida do arquivo CSV em campos.
@@ -78,7 +94,12 @@ int readFile(char *fileName){
 			fclose(csvFile);
 		return 0;
 	}
-
+	//criando arquivo de indice vazio
+	if( !createBtreeIndexFile() ){
+		fclose(csvFile);
+		fclose(binFile);
+		return 0;
+	}
 	fseek(csvFile, 0, SEEK_END); // encontra o tamanho do arquivo CSV
 	size = ftell(csvFile);
 	rewind(csvFile);
@@ -126,14 +147,19 @@ int readFile(char *fileName){
 			fwrite(&zero, sizeof(char), 1, binFile);
 		}
 
+		
+		//FAZER AQUI INSERCAO NO ARQUIVO DE INDICE USANDO ARVORE B
+		insertKeyToIndex( reg->codINEP, numReg);	
 		numReg++;
 		freeRegister(&reg);
+		
 	}
 
 	fclose(csvFile);
 
 	setStatus(binFile, 1);
 	fclose(binFile);
+	
 
 	return numReg;
 }
@@ -152,27 +178,12 @@ unsigned char isValidReg(int RRN, FILE *binFile){
 	fseek(binFile, 0, SEEK_END);
 	size = ftell(binFile);
 
-	if(HEADERSIZE + RRN*REGSIZE >= size) return 0;//RRN grande demais
+	if(RRN < 0 || HEADERSIZE + RRN*REGSIZE >= size) return 0;//RRN grande demais
 
 	fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
 	fread(&removed, 4, 1, binFile);
 	fseek(binFile, pos, SEEK_SET);
 	return (removed == -1) ? 0 : 1;
-}
-
-/** \brief Funcao que verifica o status de um arquivo, permitindo saber se esta corrompido ou nao.
-	*				Ao final, o ponteiro de arquivo passa a apontar o inicio do arquivo.
-  *
-	*\param FILE *binFile - ponteiro para o arquivo que sera verificado
-	*
-	*\return 1 - arquivo corrompido ou 0 - arquivo ok
-  */
-unsigned char isCorruptedFile(FILE *binFile){
-	unsigned char status;
-	rewind(binFile);
-	fread(&status, 1, 1, binFile);
-	rewind(binFile);
-	return !status;
 }
 
 /** \brief Funcao que le o arquivo binario e imprime todos os registros.
@@ -458,12 +469,17 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	}
 	else	//insere no final
 		fseek(binFile, 0, SEEK_END);
+	
+	//estimando rrn no qual sera inserido o registro
+	long rrn = (ftell(binFile) - HEADERSIZE)/REGSIZE;
 
 	writeReg(binFile,codINEP, dataAtiv, uf, nomeEscola, municipio, prestadora);
 
 	setStatus(binFile, 1);
 	fclose(binFile);
 
+	insertKeyToIndex( codINEP, rrn);	
+	
 	return 1;
 }
 /** \brief Funcao que recebe um campo e um valor, e imprime todos os registros que tiverem o valor procurado no campo passado
