@@ -4,6 +4,7 @@
 
 #include "arquivos.h"
 #include "BtreeIndex.h"
+#include "bufferNRU.h"
 
 #define REGSIZE 87
 #define HEADERSIZE 5
@@ -100,6 +101,9 @@ int readFile(char *fileName){
 		fclose(binFile);
 		return 0;
 	}
+	bufferpool *buffer = createBuffer();
+
+
 	fseek(csvFile, 0, SEEK_END); // encontra o tamanho do arquivo CSV
 	size = ftell(csvFile);
 	rewind(csvFile);
@@ -148,19 +152,21 @@ int readFile(char *fileName){
 		}
 
 		
-		//FAZER AQUI INSERCAO NO ARQUIVO DE INDICE USANDO ARVORE B
-		insertKeyToIndex( reg->codINEP, numReg);	
+		insertKeyToIndex(buffer, reg->codINEP, numReg);	
 		numReg++;
 		freeRegister(&reg);
 		
 	}
+
+	//salvando todas as paginas do buffer no arquivo de dados e finalizando
+	saveAllPages(buffer);
+	free(buffer);
 
 	fclose(csvFile);
 
 	setStatus(binFile, 1);
 	fclose(binFile);
 	
-
 	return numReg;
 }
 
@@ -453,6 +459,8 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 		fclose(binFile);
 		return 0;
 	}
+	
+	bufferpool *buffer = createBuffer();
 
 	setStatus(binFile, 0);
 	fread(&topoPilha, sizeof(int), 1, binFile);
@@ -478,8 +486,10 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	setStatus(binFile, 1);
 	fclose(binFile);
 
-	insertKeyToIndex( codINEP, rrn);	
-	
+	insertKeyToIndex(buffer, codINEP, rrn);	
+	saveAllPages(buffer);
+	free(buffer);
+
 	return 1;
 }
 /** \brief Funcao que recebe um campo e um valor, e imprime todos os registros que tiverem o valor procurado no campo passado

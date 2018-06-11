@@ -2,40 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "arquivos.h"
+#include "bufferNRU.h"
 #include "BtreeIndex.h"
 #include <string.h>
-
-#define NODESIZE 116
-#define INDEXHEADERSIZE 9
-#define INDEXFILENAME "BtreeIndex.dat"
-#define TREEORDER 10
-
-void setIndexRoot(FILE *indexFile, int newRoot){
-	
-	fseek(indexFile, 1, SEEK_SET);
-	fwrite(&newRoot, sizeof(int), 1, indexFile);
-
-	//chamar funcao para carregar raiz no bufferpool
-
-}
-
-int createPage(FILE *indexFile){
-	int keyAmnt = 0, value[TREEORDER + (TREEORDER-1)*2];
-	fseek(indexFile, 0, SEEK_END);
-	int pos = ftell(indexFile);
-	for(int i = 0; i < TREEORDER + (TREEORDER-1)*2; i++)
-		value[i]= -1;
-
-	//preenche espaco do no do com 0 pro qtd de chaves e -1 para as chaves, referencias e ponteiros
-	fwrite(&keyAmnt, sizeof(int), 1, indexFile);
-	fwrite(value, sizeof(int), TREEORDER + (TREEORDER-1)*2, indexFile);
-	
-	//sai da funcao no inicio da nova pagina criada
-	fseek(indexFile, pos, SEEK_SET);
-	//retorna numero da pagina 
-
-	return (pos - INDEXHEADERSIZE)/(NODESIZE);
-}
 
 //cria um novo arquivo de indice contendo apenas a raiz com 0 chaves
 int createBtreeIndexFile(){
@@ -47,167 +16,208 @@ int createBtreeIndexFile(){
 	if(!indexFile) return 0;
 	
 	//status = 0, raiz = 0, altura = 0
-	fwrite(&zero, 1, INDEXHEADERSIZE, indexFile);
-	
-	createPage(indexFile);
+	fwrite(zero, 1, INDEXHEADERSIZE, indexFile);
 
 	setStatus(indexFile, 1);
 	fclose(indexFile);
 	return 1;
 }
 
-int insertKey(FILE *indexFile, int currPage, int keyAmnt, int insertPos, int *root, int *key, int *rrn){
-	
-	int vet[TREEORDER + (TREEORDER-1)*2];
-	long indexPagePos = INDEXHEADERSIZE + currPage * NODESIZE;
-	long indexInsertPos = indexPagePos + 2*sizeof(int) + insertPos*3*sizeof(int);
-	
-	if(keyAmnt < TREEORDER-1){	//nao ocorre split
-		fseek(indexFile, indexInsertPos, SEEK_SET);
-		//salva dados para realizar deslocamento
-		fread(vet, sizeof(int), (keyAmnt - insertPos)*3, indexFile);
-		fseek(indexFile, indexInsertPos, SEEK_SET);
-		//escreve nova chave com referencia e ponteiro 
-		fwrite(key, sizeof(int), 1, indexFile);
-		fwrite(rrn, sizeof(int), 1, indexFile);
-		fwrite(root, sizeof(int), 1, indexFile);
-		//escreve os dados copiados
-		fwrite(vet, sizeof(int), (keyAmnt - insertPos)*3, indexFile); keyAmnt++;
-		//atualiza quantidade de chaves
-		fseek(indexFile, indexPagePos, SEEK_SET);
-		fwrite(&keyAmnt, sizeof(int), 1, indexFile);
-	
-		*root = -1;
-		return 0;
-	}
+btpage *createPage(){
 
-	//faz insercao com split
-	int vet2[TREEORDER + (TREEORDER-1)*2], newPgAmnt1 = TREEORDER/2, newPgAmnt2 = TREEORDER/2 -1;	
-	if(insertPos < TREEORDER/2){//insere no nodo que ja existe
-		//insere no vetor e salva dados ate a metade
-		vet[0] = *key;	vet[1] = *rrn;	vet[2] = *root;
-		fseek(indexFile, indexInsertPos, SEEK_SET);
-		fread(vet+3, sizeof(int), (TREEORDER/2-1 - insertPos)*3, indexFile);
-		//salva separadamente os dados da outra metade
-		fread(vet2, sizeof(int), (TREEORDER/2) *3, indexFile);
-		fseek(indexFile, indexPagePos, SEEK_SET);
-		//atualiza quantidade de chaves
-		fwrite(&newPgAmnt1, sizeof(int), 1, indexFile);
-		fseek(indexFile, indexInsertPos, SEEK_SET);
-		//atualiza a primeira metade
-		fwrite(vet, sizeof(int), (TREEORDER/2 - insertPos)*3, indexFile);
-		//cria uma nova pagina e escreve nela a nova metade
-		*root = createPage(indexFile);	//guarda numeracao da pagina criada para fazer a promocao de no
-		*key = vet2[0]; *rrn = vet2[1];	//guarda chave que sera promovida
-		//atualiza quantidade de chaves e as escreve
-		fwrite(&newPgAmnt2, sizeof(int), 1, indexFile);
-		fwrite(vet2 + 2, sizeof(int), (TREEORDER/2 -1)*3 + 1, indexFile);
-	}
-	else{//a insercao ocorrera no nodo criado
-		//posiciona no inicio da pagina e atualiza quantidade
-		fseek(indexFile, indexPagePos, SEEK_SET);
-		fwrite(&newPgAmnt1, sizeof(int), 1, indexFile);
-		//posiciona no meio e guarda informacao ate chegar na posicao de insercao
-		fseek(indexFile, ((TREEORDER/2)*3 + 1) * sizeof(int), SEEK_CUR);
-		fread(vet, sizeof(int), (insertPos - TREEORDER/2)*3, indexFile);
-		//guarda a nova chave e termina de copiar os dados pro vetor
-		vet[(insertPos - TREEORDER/2)*3] = *key;
-		vet[(insertPos - TREEORDER/2)*3 +1] = *rrn;
-		vet[(insertPos - TREEORDER/2)*3 + 2] = *root;
-		fread(vet + (insertPos - TREEORDER/2)*3 + 3, sizeof(int), (TREEORDER-1 - insertPos)*3,indexFile);
-		//cria uma nova pagia. O numero da pagina eh armazenado assim como os dados da chave promovida
-		*root = createPage(indexFile);
-		*key = vet[0];	*rrn = vet[1];
-		//por fim, escreve dados copiados no nodo atualizando a qtd de chaves
-		fwrite(&newPgAmnt2, sizeof(int), 1, indexFile);
-		fwrite(vet + 2, sizeof(int), (TREEORDER/2 -1)*3 + 1, indexFile);
-	}
-		return 1;
+	btpage *page = (btpage*)calloc(1, sizeof(btpage));
+	//numero de chaves 0 e todos os ponteiros com -1
+	page->child[0] = -1;
+	for(int i=0; i<TREEORDER; i++)
+		page->child[i] = -1;
+	
+	return page;
 }
 
-int findInsertPos(FILE *indexFile, int *root, int *key, int *rrn){
+int insertKey(bufferpool *buffer, btpage *root, int insertPos, int *ptr, int *key, int *rrn){
+
 	
-	int keyAmnt, insertPos = 0, rootParam = *root, keyRead;
+	if(root->keycount < TREEORDER-1){	//nao ocorre split
+		//shifta elementos ate liberar a posicao de insercao
+		for(int i = root->keycount; i > insertPos ; i--){
+			root->key[i].codINEP = root->key[i-1].codINEP;
+			root->key[i].rrn = root->key[i-1].rrn;
+			root->child[i+1] = root->child[i]; 
+		}
+		root->key[insertPos].codINEP = *key;
+		root->key[insertPos].rrn = *rrn;
+		root->child[insertPos+1] = *ptr;
+		root->keycount++;
+		
+		*ptr = -1;
+		return 0;
+	}
+	//faz insercao com split
+	
+	//criando nova pagina do split
+	btpage *newPage = createPage();
+	//a antiga fica com metade
+	root->keycount = TREEORDER/2;
+	//a nova fica com metade menos a promocao
+	newPage->keycount = TREEORDER/2 -1;
+
+	if(insertPos < TREEORDER/2){//vai inserir no nodo antigo
+		
+		//numero da pagina criada
+		newPage->pageNum = ++buffer->totalPages;
+
+		//copia para a pagina nova os dados da segunda metade
+		for(int i = 0; i < TREEORDER/2 -1; i++){//4 elementos copiados(5,6,7,8)
+
+			newPage->key[i].codINEP = root->key[ TREEORDER/2 + i].codINEP;
+			newPage->key[i].rrn = root->key[TREEORDER/2 + i].rrn;
+			newPage->child[i] = root->child[TREEORDER/2 + i];	
+		}
+		//falta o ultimo ponteiro
+		newPage->child[TREEORDER/2 - 1] = root->child[TREEORDER-1];	
+		
+
+		//shifta elementos da primeira metade ate liberar a posicao de insercao
+		for(int i = TREEORDER/2; i > insertPos; i--){
+			root->key[i].codINEP = root->key[i-1].codINEP;
+			root->key[i].rrn = root->key[i-1].rrn;
+			root->child[i+1] = root->child[i]; 
+		}
+		//insere
+		root->key[insertPos].codINEP = *key;
+		root->key[insertPos].rrn = *rrn;
+		root->child[insertPos+1] = *ptr;
+
+		//gera nodo promovido
+		*ptr = newPage->pageNum;
+		*key = root->key[TREEORDER/2].codINEP;
+		*rrn = root->key[TREEORDER/2].rrn;
+	
+		
+	}
+	else{//a insercao ocorrera no nodo criado
+		
+		//para a primeira metade ja esta certa, pois basta atualizar as quantidades
+		
+		newPage->pageNum = ++buffer->totalPages;
+		//definindo dados da pagina promovida
+		if(insertPos != TREEORDER/2){	//se forem iguais, a chave promovida eh a mesma chave passada
+			//senao, sera a primeira chave de root
+
+			//vai copiar ate a posicao de insercao
+				//o ponteiro esquerdo sempre se mantem
+			newPage->child[0] = root->child[TREEORDER/2 + 1];
+			for(int i = 0; i < insertPos - TREEORDER/2 -1; i++){
+				newPage->key[i].codINEP = root->key[TREEORDER/2 + 1 + i].codINEP;
+				newPage->key[i].rrn = root->key[TREEORDER/2 + 1 + i].rrn;
+				newPage->child[i+1] = root->child[TREEORDER/2 + 2 + i];
+			}
+			//inseir dados
+			newPage->key[insertPos - TREEORDER/2 -1].codINEP = *key;
+			newPage->key[insertPos - TREEORDER/2 -1].rrn = *rrn;
+			newPage->child[	insertPos - TREEORDER/2 ] = *ptr;
+			
+			//atualiza ponteiro promovido
+			*ptr = newPage->pageNum;
+
+			//terminar de copiar
+			for(int i = insertPos - TREEORDER/2; i < TREEORDER/2 -1; i++){
+				newPage->key[i].codINEP = root->key[TREEORDER/2 + i].codINEP;
+				newPage->key[i].rrn = root->key[TREEORDER/2 + i].rrn;
+				newPage->child[i] = root->child[TREEORDER/2 + 1 + i];
+			}
+			
+			//passando dados da chave promovida
+			*key = root->key[TREEORDER/2].codINEP;
+			*rrn = root->key[TREEORDER/2].rrn;
+		}
+		else{//basta escrever as proximas 4 chaves e 5 ponteiros
+			
+			//o ponteiro da insercao vira o primeiro da esquerda
+			newPage->child[0] = *ptr;
+			//atualiza ponteiro propagado
+			*ptr = newPage->pageNum;
+			
+			//copiando as chaves e ponteiros
+			for( int i = 0; i < TREEORDER/2 -1; i++){
+				newPage->key[i].codINEP = root->key[TREEORDER/2 + i].codINEP;
+				newPage->key[i].rrn = root->key[TREEORDER/2 + i].rrn;
+				newPage->child[i+1] = root->child[TREEORDER/2 + i + 1];
+			}
+		}
+	}
+	
+	if( !insertBuffer(buffer, newPage, MODIFIED) ) return -1; //erro de leitura do arquivo
+	
+	return 1;
+}
+
+int findInsertPos(bufferpool* buffer, btpage *root, int *ptrRead, int *key, int *rrn){
+	
+	int insertPos = 0, keyRead, promoted = 0, pageNumMem = root->pageNum;
+	
 	unsigned char halt = 0;
 	
-	//posiciona na pagina e le quantidade de chaves existentes
-	fseek(indexFile, INDEXHEADERSIZE + NODESIZE*rootParam, SEEK_SET); 
-	fread(&keyAmnt, sizeof(int), 1, indexFile);
-	fseek(indexFile, -sizeof(int), SEEK_CUR);
-
-	while(insertPos < keyAmnt && !halt){
-		//vai ler chave para comparacao. precisa pular referencia e ponteiro
-		fseek(indexFile, 2*sizeof(int), SEEK_CUR);
-		fread(&keyRead, sizeof(int), 1, indexFile);
-		if(*key < keyRead)
+	while(insertPos < root->keycount && !halt){
+		//vai comparar as chaves para achar posicao da suposta insercao
+		if(*key < root->key[insertPos].codINEP)
 			halt = 1;
 		else
 			insertPos++;
 	}
-	if( !halt ){//vai ler ponteiro da ultima chave na pagina
-		fseek(indexFile, sizeof(int), SEEK_CUR);
-		fread(root, sizeof(int), 1, indexFile);
-	}
-	else{
-		//vai ler ponteiro anterior a chave que parou o loop
-		fseek(indexFile, -2*sizeof(int), SEEK_CUR);
-		fread(root, sizeof(int), 1, indexFile);
-	}
 	
-	if( *root == -1 )//eh no folha, entao vai inserir nele
-		return insertKey(indexFile, rootParam, keyAmnt, insertPos, root, key, rrn); 
+	// olha o ponteiro se nao for a primeira chave da pagina(pagina vazia->primeira chave da arvore)
+	*ptrRead = ( root->keycount != 0 ) ? root->child[insertPos] : -1;
+
+	if( *ptrRead == -1 )//eh no folha, entao vai inserir nele
+		return insertKey(buffer, root, insertPos, ptrRead, key, rrn); 
 	
 	else	//chama novamente pegando como raiz o ponteiro lido
-		findInsertPos(indexFile, root, key, rrn);
+		promoted = findInsertPos(buffer, searchPage(buffer, *ptrRead, ACCESSED), ptrRead, key, rrn);
 	
-	//volta da recursao. Precisa verificar a promocao de no. Ocorrera se a root foi alterada para deixar de valer -1
-	if( *root != -1 )//houve promocao. Vai inserir no nodo. A posicao ja esta definida.
-							//os parametros ja foram alterados na propria insercao durante o split
-		return insertKey(indexFile, rootParam, keyAmnt, insertPos, root, key, rrn);
-	
+	if( promoted < 0 ) return -1;	//erro durante isercao
+
+	//volta da recursao. Promoted indica se houve split, ptrRead sera modificado para o nmr da pagina que propagou
+	if( promoted ){// A posicao ja esta definida eh a mesma definida no while.
+							//os parametros key e rrn ja foram alterados durante o split
+		root = searchPage(buffer, pageNumMem, MODIFIED);//pode ter sido liberada durante uma insercao anterior
+		return insertKey(buffer, root, insertPos, ptrRead, key, rrn);
+	}
 	else
-		return 1;
+		return 0;
 }
 
-int insertKeyToIndex(int key, int rrn){
+int insertKeyToIndex(bufferpool *buffer, int key, int rrn){
 	
-	int root, auxRoot, one = 1;
-
-	FILE *indexFile = fopen(INDEXFILENAME, "rb+");
+	int ptr = -1, promoted = -1;
+	btpage *newPage;	
+	//lendo a raiz do buffer
+	btpage *root = getRootPage(buffer);
 	
-	//verificando integridade do arquivo
-	if(!indexFile) return 0;
-	if(isCorruptedFile(indexFile)){
-		fclose(indexFile);
-		return 0;
-	}
-	//marcando como aberto
-	setStatus(indexFile, 0);
-	
-	fread(&root, sizeof(int), 1, indexFile);
-	auxRoot = root;
 	//busca posicao e insere.
 	//Parametros passados como ponteiros serao alterados para a promocao
-	findInsertPos(indexFile, &root, &key, &rrn);
+	promoted = findInsertPos(buffer, root, &ptr, &key, &rrn);
 	
-	if(root != -1){	//houve promocao para gerar uma nova raiz
-		//cria nodo, atribui valores
-		int newRoot = createPage(indexFile);
-		fwrite(&one, sizeof(int), 1, indexFile);
-		fwrite(&auxRoot, sizeof(int), 1, indexFile);
-		fwrite(&key, sizeof(int), 1, indexFile);
-		fwrite(&rrn, sizeof(int), 1, indexFile);
-		fwrite(&root, sizeof(int), 1, indexFile);
-		//escreve nova raiz e nova altura da arvore
-		fseek(indexFile, 1, SEEK_SET);
-		fwrite(&newRoot, sizeof(int), 1, indexFile);
-		fread(&one, sizeof(int), 1, indexFile);
-		fseek(indexFile, -sizeof(int), SEEK_CUR); one++;
-		fwrite(&one, sizeof(int), 1, indexFile);
+	if(promoted < 0) return 0;	//erro na insercao
+
+
+	if( promoted ){	//houve promocao para gerar uma nova raiz
+		//cria nodo, atribui valores de ptr, key e rrn que foram atualizados no split
+		newPage = createPage();
+		newPage->pageNum = ++buffer->totalPages;
+		newPage->keycount = 1;
+		newPage->key[0].codINEP = key;
+		newPage->key[0].rrn = rrn;
+		newPage->child[0] = root->pageNum;
+		newPage->child[1] = ptr;
+		
+		//salva raiz atual no disco disco e coloca a nova no buffer
+		if(!setRootPage(buffer, newPage)) 
+			return 0;
+		buffer->treeHeight++;
 	}
 
-	setStatus(indexFile, 1);
-	fclose(indexFile);
+	return 1;
 }
 
 void printRec(FILE *indexFile, int root){
@@ -265,5 +275,14 @@ int printBtree(){
 	fclose(indexFile);
 }
 
+void printPage(btpage *page){
+	printf("\npage %d\n keyAmnt: %d -> %d|",page->pageNum, page->keycount, page->child[0]);
+	
+	for (int i=0; i<page->keycount; i++){
+		printf("%d|%d|%d| ", page->key[i].codINEP, page->key[i].rrn, page->child[i+1]);
+	}
+	printf("\n\n");
+	
 
+}
 

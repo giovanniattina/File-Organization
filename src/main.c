@@ -192,7 +192,7 @@ int main(int argc, char **argv){
 		if(!RRN)
 			printf("Falha no processamento do arquivo.\n");
 		else if (RRN < 0)
-			printf("Registro inexistente.\n");
+			printf:("Registro inexistente.\n");
 		else{
 
 			//provavelmente mais eficiente fazer a busca e as remocoes numa funcao so dentro do indice
@@ -228,7 +228,7 @@ int main(int argc, char **argv){
 				//remove do indice e insere novamente
 				
 				//<--- chamar remocao aqui
-				insertKeyToIndex(valorCampo1, RRN);
+				//insertKeyToIndex(valorCampo1, RRN);
 			}
 			
 			printf("Registro alterado com sucesso.\n");
