@@ -1,3 +1,4 @@
+
 #ifndef _ARQUIVOS_H_
 #define _ARQUIVOS_H_
 
@@ -26,5 +27,7 @@ char *stripField(registro *reg, char *camp);
 int updateReg(int RNN, int campo1, char *campo2, char *campo3, char *campo4, char *campo5, char *campo6);
 int compact();
 int* showStack(int* sizeStack);
+void setStatus(FILE *binFile, unsigned char status);
+unsigned char isCorruptedFile(FILE *binFile);
 
 #endif
