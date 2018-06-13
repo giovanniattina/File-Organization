@@ -85,6 +85,8 @@ int readFile(char *fileName){
 	FILE *csvFile = fopen(fileName, "r");
 	FILE *binFile = fopen("data.dat", "wb");
 
+	int hit = 0; int fault = 0;
+
 	if(!csvFile){
 		if(binFile)
 			fclose(binFile);
@@ -151,11 +153,11 @@ int readFile(char *fileName){
 			fwrite(&zero, sizeof(char), 1, binFile);
 		}
 
-		
-		insertKeyToIndex(buffer, reg->codINEP, numReg);	
+
+		insertKeyToIndex(buffer, reg->codINEP, numReg, &hit, &fault);
 		numReg++;
 		freeRegister(&reg);
-		
+
 	}
 
 	//salvando todas as paginas do buffer no arquivo de dados e finalizando
@@ -166,7 +168,11 @@ int readFile(char *fileName){
 
 	setStatus(binFile, 1);
 	fclose(binFile);
-	
+
+	FILE* bufferInfo = fopen("buffer-info.txt", "a+");
+	fprintf(bufferInfo , "Page fault: %d; Page hit: %d.\n", fault, hit);
+	fclose(bufferInfo);
+
 	return numReg;
 }
 
@@ -244,7 +250,7 @@ int showAll(){
 			printReg(reg);
 
 			freeRegister(&reg);
-		
+
   		}
 		RRN++;	//sendo valido ou nao, passa para poximo registro
 		fseek(binFile, HEADERSIZE + RRN*REGSIZE, SEEK_SET);
@@ -459,8 +465,13 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 		fclose(binFile);
 		return 0;
 	}
+
+	int hit = 0, fault = 0;
+
+	bufferpool *buffer = loadBuffer(&hit, &fault);
+	hit = 0, fault = 0;
 	
-	bufferpool *buffer = createBuffer();
+	printBuffer(buffer);
 
 	setStatus(binFile, 0);
 	fread(&topoPilha, sizeof(int), 1, binFile);
@@ -477,7 +488,7 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	}
 	else	//insere no final
 		fseek(binFile, 0, SEEK_END);
-	
+
 	//estimando rrn no qual sera inserido o registro
 	long rrn = (ftell(binFile) - HEADERSIZE)/REGSIZE;
 
@@ -486,9 +497,13 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	setStatus(binFile, 1);
 	fclose(binFile);
 
-	insertKeyToIndex(buffer, codINEP, rrn);	
+	insertKeyToIndex(buffer, codINEP, rrn, &hit, &fault);
 	saveAllPages(buffer);
 	free(buffer);
+
+	FILE* bufferInfo = fopen("buffer-info.txt", "a+");
+	fprintf(bufferInfo , "Page fault: %d; Page hit: %d.\n", fault, hit);
+	fclose(bufferInfo);
 
 	return 1;
 }

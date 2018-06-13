@@ -13,6 +13,7 @@
 
 #include "arquivos.h"
 #include "BtreeIndex.h"
+#include "bufferNRU.h"
 
 int main(int argc, char **argv){
 	int opt = 0, RRN, funcResult, codInep;
@@ -28,7 +29,6 @@ int main(int argc, char **argv){
 	}
 
 	opt = atoi(argv[1]);
-	
 	//funcionalidade 10 equivalente a 1 e funcionalidade 11 equivalente a 6
 	opt = (opt == 10) ? 1 : opt;
 	opt = (opt == 11) ? 6 : opt;
@@ -119,10 +119,13 @@ int main(int argc, char **argv){
 			strcpy(valorCampo5, argv[6]);
 			strcpy(valorCampo6, argv[7]);
 
-			if(!insertReg(valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6))	
+			if(!insertReg(valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6))
 				printf("Falha no processamento do arquivo.\n");
-			else
+			else{
 				printf("Registro inserido com sucesso.\n");
+
+				printBtree();
+			}
 
       		break;
 
@@ -186,7 +189,7 @@ int main(int argc, char **argv){
 		break;
 
 	case 13:	//remocao a partir de uma chave do indice primario
-		
+
 		codInep = atoi(argv[2]);
 		//RRN = BtreeSearch(codInep); <---- implementar
 		if(!RRN)
@@ -203,7 +206,7 @@ int main(int argc, char **argv){
 		}
 		break;
 	case 14:	//atualizacao dos campos
-		
+
 		//pegando parametros
 		codInep = atoi(argv[2]);
 		valorCampo1 = atoi(argv[3]);
@@ -212,7 +215,7 @@ int main(int argc, char **argv){
 		strcpy(valorCampo4, argv[6]);
 		strcpy(valorCampo5, argv[7]);
 		strcpy(valorCampo6, argv[8]);
-		
+
 		//encontra rrn no registro
 		// RRN = BtreeSearch(codInep);
 
@@ -221,23 +224,23 @@ int main(int argc, char **argv){
 		else if(RRN < 0)
 			printf("Registro inexistente.\n");
 		else{ //existe
-			
+
 			updateReg(RRN, valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6);
 			//verificando se mudou a chave
 			if (codInep != valorCampo1){
 				//remove do indice e insere novamente
-				
+
 				//<--- chamar remocao aqui
 				//insertKeyToIndex(valorCampo1, RRN);
 			}
-			
+
 			printf("Registro alterado com sucesso.\n");
 		}
 		break;
-	
+
 	default:
 		printf("Opcao invalida.\n");
 	}
 
-	return EXIT_SUCCESS;	
+	return EXIT_SUCCESS;
 }
