@@ -4,7 +4,7 @@
 
 #define INDEXFILENAME "BtreeIndex.dat"
 #define NODESIZE 116
-#define INDEXHEADERSIZE 9
+#define INDEXHEADERSIZE 13
 #define TREEORDER 10
 
 typedef struct{

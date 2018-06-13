@@ -1,5 +1,3 @@
-
-
 #ifndef _BUFFERNRU_H_
 #define _BUFFERNRU_H_
 
@@ -27,6 +25,5 @@ int savePage(bufferpool *buffer, btpage *page);
 btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal);
 btpage* getRootPage(bufferpool *buffer);
 int setRootPage(bufferpool *buffer, btpage *newPage);
+bufferpool* loadBuffer();
 #endif
-
-
