@@ -22,8 +22,8 @@ int findBufferPos(bufferpool *buffer);
 void printBuffer(bufferpool *buffer);
 int saveAllPages(bufferpool *buffer);
 int savePage(bufferpool *buffer, btpage *page);
-btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal);
+btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal, int* hit, int* fault);
 btpage* getRootPage(bufferpool *buffer);
 int setRootPage(bufferpool *buffer, btpage *newPage);
-bufferpool* loadBuffer();
+bufferpool* loadBuffer(int* hit, int* fault);
 #endif
