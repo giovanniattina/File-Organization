@@ -134,8 +134,8 @@ btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal, int* hit, in
 	
 	insertBuffer(buffer, page, changedVal);
 
-	*fault = 0;
-	*hit = 0;
+	*fault++;
+	
 	return page;
 }
 
@@ -284,5 +284,9 @@ bufferpool* loadBuffer(int* hit, int* fault){
 		if(bufferPos >= BUFFERSIZE || buffer->page[searchPos] == NULL || searchPos >= BUFFERSIZE)
 			endLoad = 1;
 	}
+	
+	*hit = 0;
+	*fault = 0;
+	
 	return buffer;
 }
