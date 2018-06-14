@@ -469,7 +469,6 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	int hit = 0, fault = 0;
 
 	bufferpool *buffer = loadBuffer(&hit, &fault);
-	hit = 0, fault = 0;
 	
 	printBuffer(buffer);
 
