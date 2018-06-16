@@ -48,16 +48,10 @@ int findBufferPos(bufferpool *buffer){
 			vet[0]++;
 		}
 	}
-	//printBuffer(buffer);
-	//printf("(((((((((((((((((((((((((((vet[0] = %d\n", vet[0]);
 
 	int i = 1 + rand() % vet[0];	
 
-	//printf("_))))))))_i = %d\n", i);
-
-	//printf("vet[1] %d\n", vet[1]);
-
-	return vet[ 1 ];
+	return vet[ i ];
 }
 
 int updateBufferUse(bufferpool *buffer, int pagePos, int changedVal){
