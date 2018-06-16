@@ -22,9 +22,10 @@ typedef struct{
 typedef struct buf bufferpool;
 
 int createBtreeIndexFile();
-int insertKeyToIndex(bufferpool *buffer, int key, int rrn, int* hit, int* fault);
+int insertKeyToIndex(bufferpool *buffer, int key, int rrn);
 int printBtree();
 btpage* createPage();
 void printPage(btpage *page);
+int BtreeSearch(int codINEP);
 
 #endif

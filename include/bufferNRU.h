@@ -14,6 +14,7 @@ struct buf{
 	int pageNums[BUFFERSIZE];
 	char changed[BUFFERSIZE];
 	int totalPages, treeHeight;
+	int hit, fault;
 };//bufferpool -> included as typedef at "BtreeIndex.h"
 
 bufferpool* createBuffer();
@@ -22,8 +23,8 @@ int findBufferPos(bufferpool *buffer);
 void printBuffer(bufferpool *buffer);
 int saveAllPages(bufferpool *buffer);
 int savePage(bufferpool *buffer, btpage *page);
-btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal, int* hit, int* fault);
+btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal);
 btpage* getRootPage(bufferpool *buffer);
 int setRootPage(bufferpool *buffer, btpage *newPage);
-bufferpool* loadBuffer(int* hit, int* fault);
+bufferpool* loadBuffer();
 #endif
