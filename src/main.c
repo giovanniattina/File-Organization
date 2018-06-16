@@ -11,9 +11,9 @@
 #include <ctype.h>
 #include <limits.h>
 
-#include "arquivos.h"
-#include "BtreeIndex.h"
-#include "bufferNRU.h"
+#include "../include/arquivos.h"
+#include "../include/BtreeIndex.h"
+#include "../include/bufferNRU.h"
 
 int main(int argc, char **argv){
 	int opt = 0, RRN, funcResult, codInep;
@@ -176,71 +176,73 @@ int main(int argc, char **argv){
 			if(stack != NULL)
 				free(stack);
 			break;
-	case 12://recuperacao de registro com base numa chave do arquivo de indice
-		codInep = atoi(argv[2]);
-		//RRN = BtreeSearch(codInep); <---- implementar
-		//verifica se o RRN retornado eh valido
-		if(!RRN)
-			printf("Falha no processamento do arquivo.\n");
-		else if (RRN < 0)
-			printf("Registro inexistente.\n");
-		else//recupera registro por RRN
-			findRRN(RRN);
-		break;
 
-	case 13:	//remocao a partir de uma chave do indice primario
+		case 12://recuperacao de registro com base numa chave do arquivo de indice
+			codInep = atoi(argv[2]);
+			RRN = BtreeSearch(codInep);
+			printf("RRN ------------------------> %d\n", RRN);
+			//verifica se o RRN retornado eh valido
+			if(RRN < -1)
+				printf("Falha no processamento do arquivo.\n");
+			else if (RRN < 0)
+				printf("Registro inexistente.\n");
+			else//recupera registro por RRN
+				findRRN(RRN);
+			break;
 
-		codInep = atoi(argv[2]);
-		//RRN = BtreeSearch(codInep); <---- implementar
-		if(!RRN)
-			printf("Falha no processamento do arquivo.\n");
-		else if (RRN < 0)
-			printf:("Registro inexistente.\n");
-		else{
+		case 13:	//remocao a partir de uma chave do indice primario
 
-			//provavelmente mais eficiente fazer a busca e as remocoes numa funcao so dentro do indice
+			codInep = atoi(argv[2]);
+			//RRN = BtreeSearch(codInep); <---- implementar
+			if(!RRN)
+				printf("Falha no processamento do arquivo.\n");
+			else if (RRN < 0)
+				printf:("Registro inexistente.\n");
+			else{
 
-			removeReg(RRN);
-			//removeKeyFromIndex(codInep)
-				printf("Registro removido com sucesso.\n");
-		}
-		break;
-	case 14:	//atualizacao dos campos
+				//provavelmente mais eficiente fazer a busca e as remocoes numa funcao so dentro do indice
 
-		//pegando parametros
-		codInep = atoi(argv[2]);
-		valorCampo1 = atoi(argv[3]);
-		strcpy(valorCampo2, argv[4]);
-		strcpy(valorCampo3, argv[5]);
-		strcpy(valorCampo4, argv[6]);
-		strcpy(valorCampo5, argv[7]);
-		strcpy(valorCampo6, argv[8]);
-
-		//encontra rrn no registro
-		// RRN = BtreeSearch(codInep);
-
-		if(!RRN)
-			printf("Falha no processamento do arquivo.\n");
-		else if(RRN < 0)
-			printf("Registro inexistente.\n");
-		else{ //existe
-
-			updateReg(RRN, valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6);
-			//verificando se mudou a chave
-			if (codInep != valorCampo1){
-				//remove do indice e insere novamente
-
-				//<--- chamar remocao aqui
-				//insertKeyToIndex(valorCampo1, RRN);
+				removeReg(RRN);
+				//removeKeyFromIndex(codInep)
+					printf("Registro removido com sucesso.\n");
 			}
+			break;
+		case 14:	//atualizacao dos campos
 
-			printf("Registro alterado com sucesso.\n");
+			//pegando parametros
+			codInep = atoi(argv[2]);
+			valorCampo1 = atoi(argv[3]);
+			strcpy(valorCampo2, argv[4]);
+			strcpy(valorCampo3, argv[5]);
+			strcpy(valorCampo4, argv[6]);
+			strcpy(valorCampo5, argv[7]);
+			strcpy(valorCampo6, argv[8]);
+
+			//encontra rrn no registro
+			// RRN = BtreeSearch(codInep);
+
+			if(!RRN)
+				printf("Falha no processamento do arquivo.\n");
+			else if(RRN < 0)
+				printf("Registro inexistente.\n");
+			else{ //existe
+
+				updateReg(RRN, valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6);
+				//verificando se mudou a chave
+				if (codInep != valorCampo1){
+					//remove do indice e insere novamente
+
+					//<--- chamar remocao aqui
+					//insertKeyToIndex(valorCampo1, RRN);
+				}
+
+				printf("Registro alterado com sucesso.\n");
+			}
+			break;
+
+		default:
+			printf("Opcao invalida.\n");
 		}
-		break;
-
-	default:
-		printf("Opcao invalida.\n");
-	}
 
 	return EXIT_SUCCESS;
 }

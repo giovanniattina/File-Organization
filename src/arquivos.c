@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "arquivos.h"
-#include "BtreeIndex.h"
-#include "bufferNRU.h"
+#include "../include/arquivos.h"
+#include "../include/BtreeIndex.h"
+#include "../include/bufferNRU.h"
 
 #define REGSIZE 87
 #define HEADERSIZE 5
@@ -85,8 +85,6 @@ int readFile(char *fileName){
 	FILE *csvFile = fopen(fileName, "r");
 	FILE *binFile = fopen("data.dat", "wb");
 
-	int hit = 0; int fault = 0;
-
 	if(!csvFile){
 		if(binFile)
 			fclose(binFile);
@@ -154,7 +152,7 @@ int readFile(char *fileName){
 		}
 
 
-		insertKeyToIndex(buffer, reg->codINEP, numReg, &hit, &fault);
+		insertKeyToIndex(buffer, reg->codINEP, numReg);
 		numReg++;
 		freeRegister(&reg);
 
@@ -168,10 +166,6 @@ int readFile(char *fileName){
 
 	setStatus(binFile, 1);
 	fclose(binFile);
-
-	FILE* bufferInfo = fopen("buffer-info.txt", "a+");
-	fprintf(bufferInfo , "Page fault: %d; Page hit: %d.\n", fault, hit);
-	fclose(bufferInfo);
 
 	return numReg;
 }
@@ -466,9 +460,7 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 		return 0;
 	}
 
-	int hit = 0, fault = 0;
-
-	bufferpool *buffer = loadBuffer(&hit, &fault);
+	bufferpool *buffer = loadBuffer();
 	
 	printBuffer(buffer);
 
@@ -496,13 +488,9 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 	setStatus(binFile, 1);
 	fclose(binFile);
 
-	insertKeyToIndex(buffer, codINEP, rrn, &hit, &fault);
+	insertKeyToIndex(buffer, codINEP, rrn);
 	saveAllPages(buffer);
 	free(buffer);
-
-	FILE* bufferInfo = fopen("buffer-info.txt", "a+");
-	fprintf(bufferInfo , "Page fault: %d; Page hit: %d.\n", fault, hit);
-	fclose(bufferInfo);
 
 	return 1;
 }

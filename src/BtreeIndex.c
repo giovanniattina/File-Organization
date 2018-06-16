@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "arquivos.h"
 #include "bufferNRU.h"
 #include "BtreeIndex.h"
-#include <string.h>
 
 //cria um novo arquivo de indice contendo apenas a raiz com 0 chaves
 int createBtreeIndexFile(){
@@ -124,7 +124,7 @@ int insertKey(bufferpool *buffer, btpage *root, int insertPos, int *ptr, int *ke
 			for(int i = insertPos - TREEORDER/2; i < TREEORDER/2 -1; i++){
 				newPage->key[i].codINEP = root->key[TREEORDER/2 + i].codINEP;
 				newPage->key[i].rrn = root->key[TREEORDER/2 + i].rrn;
-				newPage->child[i] = root->child[TREEORDER/2 + 1 + i];
+				newPage->child[i+1] = root->child[TREEORDER/2 + 1 + i];
 			}
 
 			//passando dados da chave promovida
@@ -152,7 +152,7 @@ int insertKey(bufferpool *buffer, btpage *root, int insertPos, int *ptr, int *ke
 	return 1;
 }
 
-int findInsertPos(bufferpool* buffer, btpage *root, int *ptrRead, int *key, int *rrn, int* hit, int* fault){
+int findInsertPos(bufferpool* buffer, btpage *root, int *ptrRead, int *key, int *rrn){
 
 	int insertPos = 0, keyRead, promoted = 0, pageNumMem = root->pageNum;
 
@@ -173,21 +173,21 @@ int findInsertPos(bufferpool* buffer, btpage *root, int *ptrRead, int *key, int 
 		return insertKey(buffer, root, insertPos, ptrRead, key, rrn);
 
 	else	//chama novamente pegando como raiz o ponteiro lido
-		promoted = findInsertPos(buffer, searchPage(buffer, *ptrRead, ACCESSED, hit, fault), ptrRead, key, rrn, hit, fault);
+		promoted = findInsertPos(buffer, searchPage(buffer, *ptrRead, ACCESSED), ptrRead, key, rrn);
 
 	if( promoted < 0 ) return -1;	//erro durante isercao
 
 	//volta da recursao. Promoted indica se houve split, ptrRead sera modificado para o nmr da pagina que propagou
 	if( promoted ){// A posicao ja esta definida eh a mesma definida no while.
 							//os parametros key e rrn ja foram alterados durante o split
-		root = searchPage(buffer, pageNumMem, MODIFIED, hit, fault);//pode ter sido liberada durante uma insercao anterior
+		root = searchPage(buffer, pageNumMem, MODIFIED);//pode ter sido liberada durante uma insercao anterior
 		return insertKey(buffer, root, insertPos, ptrRead, key, rrn);
 	}
 	else
 		return 0;
 }
 
-int insertKeyToIndex(bufferpool *buffer, int key, int rrn, int* hit, int* fault){
+int insertKeyToIndex(bufferpool *buffer, int key, int rrn){
 
 	int ptr = -1, promoted = -1;
 	btpage *newPage;
@@ -196,7 +196,7 @@ int insertKeyToIndex(bufferpool *buffer, int key, int rrn, int* hit, int* fault)
 
 	//busca posicao e insere.
 	//Parametros passados como ponteiros serao alterados para a promocao
-	promoted = findInsertPos(buffer, root, &ptr, &key, &rrn, hit, fault);
+	promoted = findInsertPos(buffer, root, &ptr, &key, &rrn);
 
 	if(promoted < 0) return 0;	//erro na insercao
 
@@ -218,6 +218,48 @@ int insertKeyToIndex(bufferpool *buffer, int key, int rrn, int* hit, int* fault)
 	}
 
 	return 1;
+}
+
+
+int searchKey(btpage *root, bufferpool *buffer, int codINEP){
+
+	int i = 0, keyAmnt, halt = 0;
+	
+	printf("buscando na pagina %d\n", root->pageNum);
+
+	keyAmnt = root->keycount;
+	while( i < keyAmnt  && !halt){
+
+		printf("comparando %d <= rotkey[%d]: %d <= %d\n", codINEP, i, codINEP, root->key[i].codINEP);
+
+		if( codINEP <= root->key[i].codINEP )//encontrou ou a chave ou codigo maior
+			halt = 1;
+		else
+			i++;
+	}
+	// o 'i' foi posicionado no ponteiro que devera ser acessado
+	// ou na chave igual a buscada
+	
+	printf("halt: %d  rotKey[i]: %d  cod: %d\n", halt, root->key[i].codINEP, codINEP);
+
+	if(halt && root->key[i].codINEP == codINEP) return root->key[i].rrn;
+
+	if(root->child[i] == -1) return -1;
+
+	return searchKey(searchPage(buffer, root->child[i], ACCESSED), buffer, codINEP);
+}
+
+int BtreeSearch(int codINEP){
+	
+	bufferpool *buffer = loadBuffer();
+	
+	btpage *root = getRootPage(buffer);
+	
+	int rrn = searchKey(root, buffer, codINEP);
+
+	if(!saveAllPages(buffer)) return -2;
+
+	return rrn;	
 }
 
 void printRec(FILE *indexFile, int root){
