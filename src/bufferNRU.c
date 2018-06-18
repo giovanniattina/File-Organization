@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "../include/BtreeIndex.h"
-#include "../include/arquivos.h"
-#include "../include/bufferNRU.h"
+#include "BtreeIndex.h"
+#include "arquivos.h"
+#include "bufferNRU.h"
 #include <time.h>
 
 bufferpool* createBuffer(){
@@ -12,20 +12,31 @@ bufferpool* createBuffer(){
 
 	//creating empty page 0 as the root
 	buffer->page[0] = createPage();
+	
 	//initializing remaning buffer variables
-	for (int i=0; i<BUFFERSIZE; i++){
+	for (int i=1; i<BUFFERSIZE; i++){
 		buffer->pageNums[i] = -1;
 	}
+	buffer->pageNums[0] = 0;
+	buffer->changed[0] = 1;//modificada
 
 	srand( time(NULL) );
 
 	return buffer;
 }
 
-int findBufferPos(bufferpool *buffer){
-
+int findBufferPos(bufferpool *buffer, int pgNum){
+	
+	//verifica se a pagina ja esta no buffer, retorna a posicao dela no buffer
 	for (int i=1; i<BUFFERSIZE; i++){
-		if( buffer->pageNums[i] == -1 )
+		if(buffer->pageNums[i] == pgNum){
+			buffer->pageNums[i] = -1;
+			return i;
+		}
+	}
+	//verifica se ha posicoes vazias. retorna a primeira que encontrar
+	for (int i=1; i<BUFFERSIZE; i++){
+		if( buffer->pageNums[i] == -1 || buffer->pageNums[i] == pgNum)
 			return i;
 	}
 
@@ -65,7 +76,7 @@ int updateBufferUse(bufferpool *buffer, int pagePos, int changedVal){
 int insertBuffer(bufferpool *buffer, btpage *page, int changedVal){
 
 	//finding the postion for the insertion
-	int insertPos = findBufferPos(buffer);
+	int insertPos = findBufferPos(buffer, page->pageNum);
 	//printf("insertPos = %d\n", insertPos);
 
 	//if this position is not empty, the data gets written to the disk
@@ -83,6 +94,7 @@ int insertBuffer(bufferpool *buffer, btpage *page, int changedVal){
 }
 
 btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal){
+	
 
 	//tries to find the page inside the buffer
 	for (int i = 0; i < BUFFERSIZE; i++){
@@ -143,6 +155,7 @@ int setRootPage(bufferpool *buffer, btpage *newRoot){
 }
 
 int saveAllPages(bufferpool *buffer){
+	
 	for (int i = 0; i < BUFFERSIZE; i++){
 		if(buffer->pageNums[i] != -1){
 			if( !savePage(buffer, buffer->page[i]) )
@@ -157,7 +170,7 @@ int saveAllPages(bufferpool *buffer){
 }
 
 int savePage(bufferpool *buffer, btpage *page){
-
+	
 	FILE *btreeFile = fopen(INDEXFILENAME, "rb+");
 	if (btreeFile == NULL)
 		return 0;
@@ -165,7 +178,7 @@ int savePage(bufferpool *buffer, btpage *page){
 		fclose( btreeFile );
 		return 0;
 	}
-
+	
 	setStatus(btreeFile, 0);
 	if( buffer->pageNums[0] == page->pageNum ){	//will write the root, so updates the header first
 		fwrite(&(page->pageNum), sizeof(int), 1, btreeFile);
@@ -223,11 +236,23 @@ btpage* readIndexPage(int pageNum, FILE* btreeFile){
 	return page;
 }
 
+//busca no buffer pela pagina passada, removendo-a
+int deletePage(bufferpool *buffer, int pageNum){
+
+	for (int i = 1; i< BUFFERSIZE; i++){
+		if(buffer->pageNums[i] == pageNum){
+			free(buffer->page[i]);
+			buffer->pageNums[i] = -1;
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /*
 
 */
 bufferpool* loadBuffer(){
-	bufferpool* buffer = createBuffer();
 	
 	FILE *btreeFile = fopen(INDEXFILENAME, "rb+");
 	if (btreeFile == NULL)
@@ -240,6 +265,7 @@ bufferpool* loadBuffer(){
 	setStatus(btreeFile, 1);
 
 	int rootNum, bufferPos = 1, cont = 0, searchPos = 0, endLoad = 0;
+	bufferpool* buffer = createBuffer();
 	
 	//retrieving root number, tree height and last page number
 	fread(&(rootNum), sizeof(int), 1,btreeFile);
@@ -249,11 +275,12 @@ bufferpool* loadBuffer(){
 	setStatus(btreeFile, 1);
 	fclose(btreeFile);
 	
+	buffer->pageNums[0] = -1;//setando como posicao livre para conseguir buscar
 	//set buffer position 0 to be the root
 	buffer->page[0] = searchPage(buffer, rootNum, UNUSED);
 	buffer->pageNums[0] = rootNum;
 	buffer->pageNums[1] = -1;
-	
+
 	//will load 4 additional pages to the buffer
 	while(!endLoad){
 		//will look at the children of each filled position of the buffer starting with the root

@@ -123,8 +123,6 @@ int main(int argc, char **argv){
 				printf("Falha no processamento do arquivo.\n");
 			else{
 				printf("Registro inserido com sucesso.\n");
-
-				printBtree();
 			}
 
       		break;
@@ -180,32 +178,27 @@ int main(int argc, char **argv){
 		case 12://recuperacao de registro com base numa chave do arquivo de indice
 			codInep = atoi(argv[2]);
 			RRN = BtreeSearch(codInep);
-			printf("RRN ------------------------> %d\n", RRN);
 			//verifica se o RRN retornado eh valido
 			if(RRN < -1)
 				printf("Falha no processamento do arquivo.\n");
 			else if (RRN < 0)
 				printf("Registro inexistente.\n");
-			else//recupera registro por RRN
+			else{//recupera registro por RRN
 				findRRN(RRN);
+			}
 			break;
 
 		case 13:	//remocao a partir de uma chave do indice primario
 
 			codInep = atoi(argv[2]);
-			//RRN = BtreeSearch(codInep); <---- implementar
-			if(!RRN)
+			funcResult = BtreeRemove(codInep, REMOVE_FROM_DISK); //faz a busca pelo indice, remove dos dados, remove do indice e arruma arvore
+			if(funcResult < 0)
 				printf("Falha no processamento do arquivo.\n");
-			else if (RRN < 0)
-				printf:("Registro inexistente.\n");
-			else{
-
-				//provavelmente mais eficiente fazer a busca e as remocoes numa funcao so dentro do indice
-
-				removeReg(RRN);
-				//removeKeyFromIndex(codInep)
+			else if (!funcResult)
+				printf("Registro inexistente.\n");
+			else
 					printf("Registro removido com sucesso.\n");
-			}
+			
 			break;
 		case 14:	//atualizacao dos campos
 
@@ -219,9 +212,9 @@ int main(int argc, char **argv){
 			strcpy(valorCampo6, argv[8]);
 
 			//encontra rrn no registro
-			// RRN = BtreeSearch(codInep);
+			RRN = BtreeSearch(codInep);
 
-			if(!RRN)
+			if(RRN < -1)
 				printf("Falha no processamento do arquivo.\n");
 			else if(RRN < 0)
 				printf("Registro inexistente.\n");
@@ -230,10 +223,16 @@ int main(int argc, char **argv){
 				updateReg(RRN, valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6);
 				//verificando se mudou a chave
 				if (codInep != valorCampo1){
-					//remove do indice e insere novamente
-
-					//<--- chamar remocao aqui
-					//insertKeyToIndex(valorCampo1, RRN);
+					//remove do indice(apenas do indice)
+					funcResult = BtreeRemove(codInep, REMOVE_FROM_INDEX);
+					if(funcResult < 0) printf("Falha no processamento do arquivo.\n");
+					
+					//insere novamente
+					bufferpool *buffer = loadBuffer();
+					funcResult = insertKeyToIndex(buffer, valorCampo1, RRN);
+					saveAllPages(buffer);
+					free(buffer);
+					if(!funcResult) printf("Falha no processamento do arquivo.\n");
 				}
 
 				printf("Registro alterado com sucesso.\n");

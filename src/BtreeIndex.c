@@ -171,7 +171,7 @@ int findInsertPos(bufferpool* buffer, btpage *root, int *ptrRead, int *key, int 
 
 	if( *ptrRead == -1 )//eh no folha, entao vai inserir nele
 		return insertKey(buffer, root, insertPos, ptrRead, key, rrn);
-
+	
 	else	//chama novamente pegando como raiz o ponteiro lido
 		promoted = findInsertPos(buffer, searchPage(buffer, *ptrRead, ACCESSED), ptrRead, key, rrn);
 
@@ -197,9 +197,8 @@ int insertKeyToIndex(bufferpool *buffer, int key, int rrn){
 	//busca posicao e insere.
 	//Parametros passados como ponteiros serao alterados para a promocao
 	promoted = findInsertPos(buffer, root, &ptr, &key, &rrn);
-
+	
 	if(promoted < 0) return 0;	//erro na insercao
-
 
 	if( promoted ){	//houve promocao para gerar uma nova raiz
 		//cria nodo, atribui valores de ptr, key e rrn que foram atualizados no split
@@ -220,17 +219,11 @@ int insertKeyToIndex(bufferpool *buffer, int key, int rrn){
 	return 1;
 }
 
-
 int searchKey(btpage *root, bufferpool *buffer, int codINEP){
 
 	int i = 0, keyAmnt, halt = 0;
-	
-	printf("buscando na pagina %d\n", root->pageNum);
-
 	keyAmnt = root->keycount;
 	while( i < keyAmnt  && !halt){
-
-		printf("comparando %d <= rotkey[%d]: %d <= %d\n", codINEP, i, codINEP, root->key[i].codINEP);
 
 		if( codINEP <= root->key[i].codINEP )//encontrou ou a chave ou codigo maior
 			halt = 1;
@@ -240,8 +233,6 @@ int searchKey(btpage *root, bufferpool *buffer, int codINEP){
 	// o 'i' foi posicionado no ponteiro que devera ser acessado
 	// ou na chave igual a buscada
 	
-	printf("halt: %d  rotKey[i]: %d  cod: %d\n", halt, root->key[i].codINEP, codINEP);
-
 	if(halt && root->key[i].codINEP == codINEP) return root->key[i].rrn;
 
 	if(root->child[i] == -1) return -1;
@@ -252,13 +243,17 @@ int searchKey(btpage *root, bufferpool *buffer, int codINEP){
 int BtreeSearch(int codINEP){
 	
 	bufferpool *buffer = loadBuffer();
-	
+	if (!buffer) return -2;
 	btpage *root = getRootPage(buffer);
-	
+	if (!root) return -2;
+
 	int rrn = searchKey(root, buffer, codINEP);
 
-	if(!saveAllPages(buffer)) return -2;
-
+	for (int i = 0; i < BUFFERSIZE; i++){
+		if(buffer->pageNums[i] != -1)
+			deletePage(buffer, buffer->pageNums[i]);
+	}
+	free(buffer);
 	return rrn;	
 }
 
@@ -328,3 +323,437 @@ void printPage(btpage *page){
 
 
 }
+
+//copia chaves e ponteiros de page a partir de uma posicao especificada
+int copyToVet(treekey* keys, int* children, btpage* page, int insertPos){
+
+	for(int i = 0; i < page->keycount; i++){
+		keys[insertPos].codINEP = page->key[i].codINEP;
+		keys[insertPos].rrn = page->key[i].rrn;
+		children[insertPos++] = page->child[i];
+	}
+	children[insertPos] = page->child[page->keycount];
+
+	return insertPos;
+
+}
+
+int copyToPage(treekey* keys, int* children, btpage* page, int insertPos, int vetSize){
+
+	for(int i = 0; i < vetSize; i++){
+		page->key[i].codINEP = keys[insertPos].codINEP;
+		page->key[i].rrn = keys[insertPos].rrn;
+		page->child[i] = children[insertPos++];
+	}
+	page->child[vetSize] = children[insertPos];
+
+	page->keycount = vetSize;
+
+	return insertPos;	
+
+}
+
+int redistribPages(bufferpool* buffer, btpage* childCpy, btpage* parentCpy, int child, unsigned char right){
+
+	treekey keys[TREEORDER + (TREEORDER/2) - 2];
+	int children[TREEORDER + (TREEORDER/2) - 1];
+
+	btpage* secondChild = searchPage(buffer, parentCpy->child[child], MODIFIED);
+
+	if(secondChild == NULL) return -1;
+	
+	int insertPos = 0;
+
+	if(right){	//se vai pegar o irmao da direita 
+		//juntando os dados das paginas
+		insertPos = copyToVet(keys, children, secondChild, insertPos);
+		keys[insertPos].codINEP = parentCpy->key[child].codINEP;
+		keys[insertPos++].rrn = parentCpy->key[child].rrn;
+		insertPos = copyToVet(keys, children, childCpy, insertPos);
+
+		//redefinindo as paginas dos filhos
+		int insertPagePos = 0;
+		insertPagePos = copyToPage(keys, children, secondChild, insertPagePos, insertPos/2);
+		insertPagePos = copyToPage(keys, children, childCpy, insertPagePos + 1, insertPos - (insertPos/2) - 1);
+	}
+	else{
+		child--;
+		//juntando os dados das paginas
+		insertPos = copyToVet(keys, children, childCpy, insertPos);
+		keys[insertPos].codINEP = parentCpy->key[child].codINEP;
+		keys[insertPos++].rrn = parentCpy->key[child].rrn;
+		insertPos = copyToVet(keys, children, secondChild, insertPos);
+
+		//redefinindo as paginas dos filhos
+		int insertPagePos = 0;
+		insertPagePos = copyToPage(keys, children, childCpy, insertPagePos, insertPos/2);
+		insertPagePos = copyToPage(keys, children, secondChild, insertPagePos + 1, insertPos - (insertPos/2) - 1);
+	}
+
+	//definindo nova chave do pai
+	parentCpy->key[child].codINEP = keys[insertPos/2].codINEP;
+	parentCpy->key[child].rrn = keys[insertPos/2].rrn;
+
+	return insertBuffer(buffer, parentCpy, MODIFIED) && insertBuffer(buffer, childCpy, MODIFIED);
+
+}
+
+int redistrib(bufferpool* buffer, btpage* parent, int child){
+
+	treekey keys[TREEORDER + (TREEORDER/2) - 2];
+	int children[TREEORDER + (TREEORDER/2) - 1];
+
+	btpage* parentCpy = createPage();
+
+	memcpy(parentCpy, parent, sizeof(btpage));		//faz copia para nao perder dados ao chamar searchPage()
+
+	//caso em que tera apenas irmao direito
+	if(child == 0){	
+		
+		btpage* rightChild = searchPage(buffer, parentCpy->child[1], MODIFIED);
+
+		//verificando quantidade  de nodos no irmao
+		if(rightChild->keycount < TREEORDER/2){
+			free(parentCpy);
+			return 0;	//nao consegue fazer redistribuicao
+		}
+
+		btpage* rightChildCpy = createPage();
+		memcpy(rightChildCpy, rightChild, sizeof(btpage));		//copia pois vai chamar searchPage() novamente
+
+		return redistribPages(buffer, rightChildCpy, parentCpy, child, 1);
+
+	}
+
+	//caso em que tera apenas irmao esquerdo
+	if(child == parentCpy->keycount){	
+
+		btpage* leftChild = searchPage(buffer, parentCpy->child[parentCpy->keycount-1], MODIFIED);
+		if(leftChild->keycount < TREEORDER/2){
+			free(parentCpy);
+			return 0;
+		}
+
+		btpage* leftChildCpy = createPage();
+		memcpy(leftChildCpy, leftChild, sizeof(btpage));		//copia pois vai chamar searchPage() novamente
+
+		return redistribPages(buffer, leftChildCpy, parentCpy, child, 0);
+		
+	}
+	
+	//resta o caso em que tem os dois irmaos
+
+	btpage* rightChild = searchPage(buffer, parentCpy->child[child + 1], MODIFIED);
+	//verificando quantidade  de nodos no irmao
+	if(rightChild->keycount < TREEORDER/2){	//se nao consegue fazer na direita
+
+		btpage* leftChild = searchPage(buffer, parentCpy->child[child - 1], MODIFIED);
+		if(leftChild->keycount < TREEORDER/2){	//tenta fazer na esquerda
+			free(parentCpy);
+			return 0;	//cao conseguiu com nenhum deles
+		}
+		btpage* leftChildCpy = createPage();
+		memcpy(leftChildCpy, leftChild, sizeof(btpage));		//copia pois vai chamar searchPage() novamente
+
+		return redistribPages(buffer, leftChildCpy, parentCpy, child, 0);
+	}
+
+	btpage* rightChildCpy = createPage();
+	memcpy(rightChildCpy, rightChild, sizeof(btpage));		//copia pois vai chamar searchPage() novamente
+
+	return redistribPages(buffer, rightChildCpy, parentCpy, child, 1);
+
+
+
+}
+
+int concat(bufferpool* buffer, btpage* parent, int child){
+	
+	int leastPage;//o numero da pagina que ficar no fim da concatenacao
+	btpage* parentCpy = createPage();
+	memcpy(parentCpy, parent, sizeof(btpage));		//faz copia para nao perder dados ao chamar searchPage()
+	
+	if(child == parentCpy->keycount){		//vai concatenar com irmao esquerdo
+		
+		//faz copia do irmao direito
+		btpage* rightChild = searchPage(buffer, parentCpy->child[child], MODIFIED);
+		if(rightChild == NULL) return -2;
+		btpage* rightChildCpy = createPage();
+		memcpy(rightChildCpy, rightChild, sizeof(btpage));
+		
+		//recupera irmao esquerdo
+		btpage* leftChild = searchPage(buffer, parentCpy->child[child - 1], MODIFIED);
+		if(leftChild == NULL) return -2;
+		
+		//o irmao esquerdo se mantem. O pai vai entrar no final dele
+		leftChild->key[leftChild->keycount].codINEP = parentCpy->key[child - 1].codINEP;
+		leftChild->key[leftChild->keycount++].rrn = parentCpy->key[child - 1].rrn;
+		//o nodo direito eh copiado para as posicoes restantes
+		for(int i = 0; i < rightChildCpy->keycount; i++){
+			leftChild->key[leftChild->keycount].codINEP = rightChildCpy->key[i].codINEP;
+			leftChild->key[leftChild->keycount].rrn = rightChildCpy->key[i].rrn;
+			leftChild->child[leftChild->keycount++] = rightChildCpy->child[i];			
+		}
+		leftChild->child[leftChild->keycount] = rightChildCpy->child[rightChildCpy->keycount];			
+		
+		parentCpy->keycount--;
+		
+		//sera mantida a pagina de menor numero. 
+		int rightPageNum = rightChildCpy->pageNum;
+		//remove do buffer(e da arvore) 
+		deletePage(buffer, rightPageNum);
+		free(rightChildCpy);
+		
+		//deletada do buffer se estiver nele para retirar duplicata
+		btpage *leftChildCpy = createPage();
+		memcpy(leftChildCpy, leftChild, sizeof(btpage));
+		deletePage(buffer, leftChild->pageNum);
+		
+		//definindo nmr da pagina como a menor das duas
+		leastPage = (leftChildCpy->pageNum > rightPageNum) ?  rightPageNum : leftChildCpy->pageNum;
+		
+		leftChildCpy->pageNum = leastPage;
+		parentCpy->child[parentCpy->keycount] = leastPage;
+		
+		//garante que o numero total de paginas nao cresca indefinidamente
+		if(buffer->totalPages == leastPage) buffer->totalPages--;
+		
+		if(!(insertBuffer(buffer, leftChildCpy, MODIFIED) && insertBuffer(buffer, parentCpy, MODIFIED))) return - 2;
+
+	}
+	else{
+		//vai concatenar com irmao direito
+
+		//fazendo copia do irmao direito
+		btpage* rightChild = searchPage(buffer, parentCpy->child[child + 1], MODIFIED);
+		if(rightChild == NULL) return -2;
+		btpage* rightChildCpy = createPage();
+		memcpy(rightChildCpy, rightChild, sizeof(btpage));
+		
+		//recuperando o nodo esquerdo
+		btpage* leftChild = searchPage(buffer, parentCpy->child[child], MODIFIED);
+		if(leftChild == NULL) return -2;
+		
+		//novamente, basta preencher a partir do fim do nodo esquerdo
+		leftChild->key[leftChild->keycount].codINEP = parentCpy->key[child].codINEP;
+		leftChild->key[leftChild->keycount++].rrn = parentCpy->key[child].rrn;
+		
+		//termina de copiar
+		for(int i = 0; i < rightChildCpy->keycount; i++){
+			leftChild->key[leftChild->keycount].codINEP = rightChildCpy->key[i].codINEP;
+			leftChild->key[leftChild->keycount].rrn = rightChildCpy->key[i].rrn;
+			leftChild->child[leftChild->keycount++] = rightChildCpy->child[i];
+		}
+		leftChild->child[leftChild->keycount] = rightChildCpy->child[rightChildCpy->keycount];
+		
+		//precisa shiftar as chaves e ponteiros do pai pra esquerda 1 unidade
+		for(int i = child; i < parentCpy->keycount - 1; i++){
+			parentCpy->key[i].codINEP = parentCpy->key[i + 1].codINEP;
+			parentCpy->key[i].rrn = parentCpy->key[i + 1].rrn;
+			parentCpy->child[i] = parentCpy->child[i + 1];
+		}
+		parentCpy->child[parentCpy->keycount - 1] = parentCpy->child[parentCpy->keycount--];
+		
+		int rightPageNum = rightChildCpy->pageNum;
+		
+		//precisa tirar a direita do buffer antes para nao ter duplicata
+		deletePage(buffer, rightPageNum);
+		free(rightChildCpy);
+
+		btpage *leftChildCpy = createPage();
+		memcpy(leftChildCpy, leftChild, sizeof(btpage));
+		deletePage(buffer, leftChild->pageNum);
+		
+		//definindo nmr da pagina como a menor das duas
+		leastPage = (leftChildCpy->pageNum > rightPageNum) ?  rightPageNum : leftChildCpy->pageNum;
+
+		leftChildCpy->pageNum = leastPage;
+		
+		//atualizando ponteiro do pai para apontar para a pagina concatenada
+		parentCpy->child[child] = leftChildCpy->pageNum;
+		//garante que o numero total de paginas nao cresca indefinidamente
+		if(buffer->totalPages == leastPage) buffer->totalPages--;
+
+		if(!(insertBuffer(buffer, leftChildCpy, MODIFIED) && insertBuffer(buffer, parentCpy, MODIFIED))) return - 2;
+	}
+	
+	//se a quantidade de nodos for menor que a ocupacao minima
+	if(parentCpy->keycount < TREEORDER/2 - 1){
+		//se for raiz e diferente de 0, nao tem problema
+		if(parentCpy->pageNum == buffer->pageNums[0] && parentCpy->keycount > 0) return -1;
+		//senao propaga concatenacao
+		return leastPage;
+	}
+	return -1;
+}
+
+int removeKey(bufferpool* buffer, btpage* leaf, int removePos, int rmPageNum){
+
+	if(rmPageNum != -1){
+		if(leaf->child[leaf->keycount] != -1){	//continua procurando o predecessor
+			int parentPageNum = leaf->pageNum;	//guardando o numero da pagina para volta da recursao
+			int underflow = removeKey(buffer, searchPage(buffer, leaf->child[leaf->keycount], ACCESSED), removePos, rmPageNum);
+			//filho acessado tera sido sempre o apontado pelo ultimo ponteiro
+
+			if(underflow > -1){
+				btpage* parent = searchPage(buffer, parentPageNum, MODIFIED);
+				int retVal = redistrib(buffer, parent, parent->keycount); 
+				
+				if(retVal == 0){
+					//precisa garantir que parent nao foi liberado na redistribuicao
+					parent = searchPage(buffer, parentPageNum, MODIFIED);
+					return concat(buffer, parent, parent->keycount);
+				}
+				 //as opcoes de retorno restantes sao -1, erro, ou 0 nao precisa propagar
+				return retVal > 0 ? 1 : -2;
+			}
+			
+			return underflow;	//0 se nao houve nenhum underflow. -1 se houve erro
+
+		}
+		else{
+
+			btpage* auxpage = createPage();
+
+			memcpy(auxpage, leaf, sizeof(btpage));
+
+			//armazenando dados para troca		
+			treekey successorkey;
+
+			btpage* successor = searchPage(buffer, rmPageNum, MODIFIED);
+
+			successorkey.codINEP = successor->key[removePos].codINEP;
+			successorkey.rrn = successor->key[removePos].rrn;
+
+			//fazendo swap. A pagina ja eh alterada direto no buffer
+			successor->key[removePos].codINEP = auxpage->key[auxpage->keycount - 1].codINEP;
+			successor->key[removePos].rrn = auxpage->key[auxpage->keycount - 1].rrn;
+
+			auxpage->key[auxpage->keycount - 1].codINEP = successorkey.codINEP;
+			auxpage->key[auxpage->keycount - 1].rrn = successorkey.rrn;
+			
+			//a auxiliar precisa ser salva no buffer. 
+			insertBuffer(buffer, auxpage, MODIFIED);
+
+			return removeKey(buffer, auxpage, auxpage->keycount - 1, -1);
+		}
+	}
+	
+	leaf->keycount--;
+	for(int i = removePos; i < leaf->keycount; i++)
+		leaf->key[i] = leaf->key[i+1];
+	
+	//verifica se o estado final do nodo satisfaz ocupacao minima. retorna dizendo se deu underflow.
+	return leaf->keycount < (TREEORDER/2) - 1 ? 1 : -1;
+}
+
+int findRemovePos(bufferpool* buffer, btpage* root, int codINEP, unsigned char removeType){
+
+	int i = 0, halt = 0, rootPageNum = root->pageNum, underflow;
+	
+	while(i < root->keycount && !halt){
+
+		if(codINEP <= root->key[i].codINEP)
+			halt = 1;
+		else
+			i++;
+	}
+	
+	if(halt && codINEP == root->key[i].codINEP){	//encontrou a posicao de remocao
+		
+		if (removeType == REMOVE_FROM_DISK){
+			int funcResult = removeReg(root->key[i].rrn);//faz remocao logica do registro no arquivo de dados
+			if( !funcResult ) return -2; //falha no processamento do arquivo de dados. retorna erro.
+		}
+		btpage* parent = NULL;
+
+		if(root->child[i] == -1){	//ja eh folha
+			 return removeKey(buffer, root, i, -1);
+		}
+		else{	//nao eh folha, vai buscar substituicao pelo predecessor
+			int predecPageNum = root->child[i];
+			underflow = removeKey(buffer, searchPage(buffer, root->child[i], ACCESSED), i, rootPageNum);
+			//precisa tratar esse primeiro retorno a parte
+				
+			if(underflow > -1){	//deu underflow
+				
+				btpage* parent = searchPage(buffer, rootPageNum, MODIFIED);
+				int retVal = redistrib(buffer, parent, i);
+				
+				if(!retVal){	//redistribuicao nao funcionou. vai concatenar.
+					parent = searchPage(buffer, rootPageNum, MODIFIED);
+					return  concat(buffer, parent, i); //se propagou, retorna nmr da pagina atual
+				}
+				return retVal > 0 ? -1 : -2;
+				//se retVal retornou -2, houve erro.
+			}
+			return underflow;	//0 se nao houve underflow, retorna 0. se for < 0 , deu erro, retorna -1.
+		}
+	}
+
+	else if(root->child[i] == -1) return -3;	//chave não encontrada
+	
+	//vai continuar buscando pela chave
+	underflow = findRemovePos(buffer, searchPage(buffer, root->child[i], ACCESSED), codINEP, removeType);
+
+	//retorno da recursao entra aqui
+	
+	if(underflow > -1){	//deu underflow
+		btpage *parent = searchPage(buffer, rootPageNum, MODIFIED);
+		int retVal = redistrib(buffer, parent, i);
+
+		if(retVal == 0){
+			
+			parent = searchPage(buffer, rootPageNum, MODIFIED);
+			return concat(buffer, parent, i);	//se propagou, retorna nmr da pagina atual
+		}
+		
+		// se fez resditribuicao nao precisa fazer nada(retorna 0). se deu erro retorna -1
+		return retVal > 0 ? -1 : -2;
+	}
+	if (!underflow) return 0;	//retorno da recursao apos remocao e ajustes
+	return underflow;
+
+}
+
+int BtreeRemove(int codINEP, unsigned char removeType){
+
+	bufferpool* buffer = loadBuffer();
+	
+	btpage* root = getRootPage(buffer);
+	int rootPageNum = root->pageNum;
+	
+	int underflow = findRemovePos(buffer, root, codINEP, removeType);
+	
+	if(underflow > -1){	//diminuiu a altura da arvore. Nova arvore eh o valor retornado em underflow
+		if(buffer->treeHeight > 0){	//mas somente se a raiz nao for a folha
+		
+			//remove raiz do buffer
+			free(buffer->page[0]);
+			
+			//escolhendo menor numero pra nova raiz
+			rootPageNum = ( rootPageNum < underflow ) ? rootPageNum : underflow; 
+			
+			//recuperando e criando copia da nova raiz
+			btpage *newRoot = createPage();
+			memcpy(newRoot, searchPage(buffer, underflow, ACCESSED), sizeof(btpage));
+			//nova raiz pode ja estar no buffer. necessario remover duplicata
+			deletePage(buffer, underflow);
+			newRoot->pageNum = rootPageNum;
+
+			//atribuindo nova raiz
+			buffer->page[0] = newRoot;
+			buffer->pageNums[0] = rootPageNum;
+			buffer->treeHeight--;
+		}
+	}
+	
+	saveAllPages(buffer);
+	free(buffer);
+
+	if ( underflow == -2) return -1;//erro na remocao
+	if ( underflow == -3) return 0;//chave nao encontrada
+	return 1;//remocao bem-sucedida
+}
+
+

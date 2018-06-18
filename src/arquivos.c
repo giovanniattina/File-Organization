@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../include/arquivos.h"
-#include "../include/BtreeIndex.h"
-#include "../include/bufferNRU.h"
+#include "arquivos.h"
+#include "BtreeIndex.h"
+#include "bufferNRU.h"
 
 #define REGSIZE 87
 #define HEADERSIZE 5
@@ -462,8 +462,6 @@ int insertReg(int codINEP, char *dataAtiv, char *uf, char *nomeEscola, char *mun
 
 	bufferpool *buffer = loadBuffer();
 	
-	printBuffer(buffer);
-
 	setStatus(binFile, 0);
 	fread(&topoPilha, sizeof(int), 1, binFile);
 
