@@ -1,5 +1,7 @@
 all:
 	gcc -o programaTrab1 -g ./src/*c -I./include -lm -std=gnu99
+io:
+	gcc -o io io.c -g ./src/arquivos.c ./src/BtreeIndex.c ./src/bufferNRU.c -std=gnu99 -I./include
 run:
 	./programaTrab1
 valgrind:
@@ -30,6 +32,10 @@ func8:
 	./programaTrab1 8
 func9:
 	./programaTrab1 9
+func12:
+	./programaTrab1 12 12345678
+func13:
+	./programaTrab1 13 12345678
 
 
 
