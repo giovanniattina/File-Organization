@@ -6,6 +6,8 @@
 #define NODESIZE 116
 #define INDEXHEADERSIZE 13
 #define TREEORDER 10
+#define REMOVE_FROM_DISK 1
+#define REMOVE_FROM_INDEX 0
 
 typedef struct{
 	int codINEP;
@@ -27,5 +29,6 @@ int printBtree();
 btpage* createPage();
 void printPage(btpage *page);
 int BtreeSearch(int codINEP);
+int BtreeRemove(int codINEP, unsigned char removeType);
 
 #endif

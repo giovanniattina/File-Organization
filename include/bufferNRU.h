@@ -19,7 +19,7 @@ struct buf{
 
 bufferpool* createBuffer();
 int insertBuffer(bufferpool *buffer, btpage *page, int changedVal);
-int findBufferPos(bufferpool *buffer);
+int findBufferPos(bufferpool *buffer, int pgNum);
 void printBuffer(bufferpool *buffer);
 int saveAllPages(bufferpool *buffer);
 int savePage(bufferpool *buffer, btpage *page);
@@ -27,4 +27,5 @@ btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal);
 btpage* getRootPage(bufferpool *buffer);
 int setRootPage(bufferpool *buffer, btpage *newPage);
 bufferpool* loadBuffer();
+int deletePage(bufferpool *buffer, int pgNum);
 #endif
