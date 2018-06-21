@@ -174,10 +174,42 @@ int main(int argc, char **argv){
 			if(stack != NULL)
 				free(stack);
 			break;
+		case 10:
+			if (argc < 3)
+			{
+				printf("Uso: %s 1 'arquivo.csv'\n", argv[0]);
+				return EXIT_FAILURE;
+			}
+
+			fileName = argv[2];
+			if (!readFile(fileName))
+				printf("Falha no carregamento do arquivo.\n");
+			else
+				printf("Arquivo carregado.\n");
+			
+			break;
+		case 11:
+			RRN = atoi(argv[2]);
+			valorCampo1 = atoi(argv[3]);
+			strcpy(valorCampo2, argv[4]);
+			strcpy(valorCampo3, argv[5]);
+			strcpy(valorCampo4, argv[6]);
+			strcpy(valorCampo5, argv[7]);
+			strcpy(valorCampo6, argv[8]);
+
+			funcResult = updateReg(RRN, valorCampo1, valorCampo2, valorCampo3, valorCampo4, valorCampo5, valorCampo6);
+
+			if (!funcResult)
+				printf("Falha no processamento do arquivo.\n");
+			else if (funcResult < 0)
+				printf("Registro inexistente.\n");
+			else
+				printf("Registro alterado com sucesso.\n");
+			break;
 
 		case 12://recuperacao de registro com base numa chave do arquivo de indice
 			codInep = atoi(argv[2]);
-			RRN = BtreeSearch(codInep);
+			RRN = BtreeSearchCode(codInep);
 			//verifica se o RRN retornado eh valido
 			if(RRN < -1)
 				printf("Falha no processamento do arquivo.\n");
@@ -212,7 +244,7 @@ int main(int argc, char **argv){
 			strcpy(valorCampo6, argv[8]);
 
 			//encontra rrn no registro
-			RRN = BtreeSearch(codInep);
+			RRN = BtreeSearchCode(codInep);
 
 			if(RRN < -1)
 				printf("Falha no processamento do arquivo.\n");

@@ -28,4 +28,7 @@ btpage* getRootPage(bufferpool *buffer);
 int setRootPage(bufferpool *buffer, btpage *newPage);
 bufferpool* loadBuffer();
 int deletePage(bufferpool *buffer, int pgNum);
+int BtreeSearchCode(int searchKey);
+int searchTheKey(bufferpool *myBuffer, int searchKey, int pageNum);
+int searchRoot(bufferpool *myBuffer, int searchKey);
 #endif

@@ -6,6 +6,12 @@
 #include "bufferNRU.h"
 #include <time.h>
 
+/**
+ *	Function is used in the first time that Buffer Pool is create
+ *  Return:
+ * 			- A empity buffer with page with RRN 0 in the root 
+ * 
+ */
 bufferpool* createBuffer(){
 
 	bufferpool *buffer = (bufferpool*)calloc(1, sizeof(bufferpool));
@@ -60,6 +66,17 @@ int findBufferPos(bufferpool *buffer, int pgNum){
 
 	return vet[ i ];
 }
+/**
+ * 
+ * Update the substitution policies value by the pass through parameter in a specific page
+ * Parameters:
+ * 			- buffer: Buffer-pool with the data to be change
+ * 			- pagePos: page to modify the policy value.
+ * 			- changedVal: new policy value
+ * Return:
+ * 			- 0 to show the function finalization
+ *  
+ */
 
 int updateBufferUse(bufferpool *buffer, int pagePos, int changedVal){
 
@@ -73,6 +90,16 @@ int updateBufferUse(bufferpool *buffer, int pagePos, int changedVal){
 	return 0;
 }
 
+/**
+ * Pass a page to be added in the buffer pool, with our political number
+ * Parameter:
+ * 			-buffer: Buffer Pool to insert the new page
+ * 			-page: new page to be inserted
+ * 			 - changeVal: new political value
+ * Return:
+ * 			- 0 if any error occur
+ * 			- 1 if succeed 
+ */
 int insertBuffer(bufferpool *buffer, btpage *page, int changedVal){
 
 	//finding the postion for the insertion
@@ -92,7 +119,15 @@ int insertBuffer(bufferpool *buffer, btpage *page, int changedVal){
 
 	return 1;
 }
-
+/**
+ * Search a page in the buffer pool and change the value for NRU, if the page is not in the buffer search it in the file and adds following the substitution policies
+ * Parameters:
+ * 				- Buffer to search the page
+ * 				- pageNum: page to search
+ * 				- changeVal: new political value
+ * Return:
+ * 			Page founded
+ */
 btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal){
 	
 
@@ -140,12 +175,28 @@ btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal){
 	return page;
 }
 
+/**
+ * Return the root page save in the buffer pool
+ * Parameters:
+ * 				- buffer: Buffer Pool with the infos
+ * Retun:
+ * 		 - the root page
+ * 
+ */
 btpage* getRootPage(bufferpool *buffer){
 	
 	buffer->hit++;
 	return buffer->page[0];
 }
-
+/**
+ *	Change the root page in the Buffer
+ *  Parameters:
+ * 				- Buffer: Buffer to work on
+ * 				- newRoot: new root page
+ * Return:
+ * 			- 0 if any error occur
+ * 			- 1 if succeed 
+ */
 int setRootPage(bufferpool *buffer, btpage *newRoot){
 	if( !savePage(buffer, buffer->page[0]) ) return 0;
 
@@ -153,6 +204,14 @@ int setRootPage(bufferpool *buffer, btpage *newRoot){
 	buffer->pageNums[0] = newRoot->pageNum;
 	return 1;
 }
+/**
+ * SAve all the pages in the Buffer-Pool in the file
+ * Parameters:
+ * 				- Buffer: buffer pool with the pages to save
+ *  Return:
+ * 			- 0 if any error occur
+ * 			- 1 if succeed 
+*/
 
 int saveAllPages(bufferpool *buffer){
 	
@@ -169,6 +228,15 @@ int saveAllPages(bufferpool *buffer){
 	return 1;
 }
 
+/**
+ * Save one page file in the B-Tree file, checking if the page to save is the root, so att th file header
+ * Parameters:
+ * 			-  buffer: Buffer if the data
+ * 			- page: page to save
+ * Return:
+ * 			- 0 if any error occur
+ * 			- 1 if succeed
+ */
 int savePage(bufferpool *buffer, btpage *page){
 	
 	FILE *btreeFile = fopen(INDEXFILENAME, "rb+");
@@ -236,7 +304,13 @@ btpage* readIndexPage(int pageNum, FILE* btreeFile){
 	return page;
 }
 
-//busca no buffer pela pagina passada, removendo-a
+/**
+ * Busca no buffer pela pagina passada, removendo-a
+ * Parametros: buffer: Buffer para remover a pagina
+ * 			   pageNum: pagina a ser removida
+ * Return: 0: Se tiver alguma falha.
+ * 		   1: Se ouve sucesso.
+*/
 int deletePage(bufferpool *buffer, int pageNum){
 
 	for (int i = 1; i< BUFFERSIZE; i++){
@@ -249,9 +323,11 @@ int deletePage(bufferpool *buffer, int pageNum){
 	return 0;
 }
 
-/*
+/**
+ * Create the Buffer-Pool withe the tre pages preloades, always trying to save a page from each height of the tree
+ * Returns an address for the Buffer-Pool data   
+ */
 
-*/
 bufferpool* loadBuffer(){
 	
 	FILE *btreeFile = fopen(INDEXFILENAME, "rb+");
@@ -305,4 +381,120 @@ bufferpool* loadBuffer(){
 	buffer->fault = 0;
 	
 	return buffer;
+}
+/**  
+ *Function starts by searching the root of the tree that is saved in the buffer pool until it finds the RNN value of the required data
+ * Parameters::
+ *     myBuffer: Buffer Pool with preloaded data to do the search
+ *     searchKey: Key you were looking for in the tree
+ *     Return: 
+ *      -1: if I do not find the key in the tree
+ *      c.a.c: RNN in the data file
+*/
+
+int searchRoot(bufferpool *myBuffer, int searchKey){
+
+	/*
+        pos -> variable to save the position that the key is saved on the page and also to save the location of the child page pointer if you can not find the key on the page
+    	rrn -> variable saves the RNN value of the data being searched in the data file
+    */
+	int pos = -1;
+	int rrn = -1;
+
+	//first checks to see if there is a root in the buffer
+	if (myBuffer->pageNums[0] != -1){
+		printf("Raiz: %d\n", myBuffer->pageNums[0]);
+
+		//exist the root in the buffer, look for the key in the page (root), not finding, search in the children
+		for (int i = 0; i < myBuffer->page[0]->keycount; i++){
+
+			if (myBuffer->page[0]->key[i].codINEP >= searchKey){
+				printf("Verificando na chave %d\n", myBuffer->page[0]->key[i].codINEP);
+				pos = i;
+				break;
+			}
+		}
+		printf("pos salva %d\n\n", pos);
+		//if I find the key, returns the rnn of the data file
+		if (myBuffer->page[0]->key[pos].codINEP == searchKey)
+			rrn = myBuffer->page[0]->key[pos].rrn;
+		else{
+			printf("vai para a pagina %d\n", myBuffer->page[0]->child[pos]);
+
+			if (myBuffer->page[0]->child[pos] != -1)
+			{
+				printf("chave after %d\n", myBuffer->page[0]->key[pos - 1].codINEP);
+
+				printf("chave %d\n", myBuffer->page[0]->key[pos].codINEP);
+
+				rrn = searchTheKey(myBuffer, searchKey, myBuffer->page[0]->child[pos]);
+			}
+		}
+	}
+	return rrn;
+}
+
+/**
+ *  Function searches on a page for the searched key, it is recursive, that is, it goes to the child node of the tree
+ *  Parametros:
+ *    mtBuffer: buffer with preloaded pages
+ *    searchKey: key you are looking for in the tree
+ *    pageNum: page that is looking for the key
+
+ *  Return: 
+ *    -1: if  does not find the key in the tree
+ *    c.a.c: RNN in the data file
+ */
+
+int searchTheKey(bufferpool *myBuffer, int searchKey, int pageNum){
+
+	/*  
+    btpage -> receives the page from the tree that the key is saved
+        pos -> variable to save the position that the key is saved on the page and also to save the location of the child page pointer if you can not find the key on the page
+  */
+	btpage *pageReturn = searchPage(myBuffer, pageNum, 2);
+	int pos = -1;
+
+	for (int i = 0; i < pageReturn->keycount; i++)
+		if (pageReturn->key[i].codINEP >= searchKey){
+			printf("Verificando na chave %d\n", pageReturn->key[i].codINEP);
+			pos = i;
+			break;
+		}
+
+	printf("pos salva %d\n\n", pos);
+	if (pageReturn->key[pos].codINEP == searchKey){
+		printf("Ai\n");
+		return pageReturn->key[pos].rrn;
+	}else{
+		printf("vai para a pagina %d\n", pageReturn->child[pos]);
+
+		if (pageReturn->child[pos] != -1){
+			printf("chave %d\n", pageReturn->key[pos].codINEP);
+			printf("a chave %d\n", pageReturn->key[pos - 1].codINEP);
+
+			return searchTheKey(myBuffer, searchKey, pageReturn->child[pos]);
+		}else	return -1;
+	}
+}
+
+/**
+ * Function returns the RNN in the search for a key in the tree
+ * Parametros:
+ *       searchKey: key being searched on the tree
+ * Return:
+ *       RNN in the data file
+ *       -1 if does not find the key in the tree
+ 
+*/
+int BtreeSearchCode(int searchKey){
+
+	bufferpool *myBuffer;
+	myBuffer = loadBuffer();
+	printBuffer(myBuffer);
+	printf("------\n");
+	printf("Buffer Load\n");
+	printf("------\n");
+
+	return searchRoot(myBuffer, searchKey);
 }
