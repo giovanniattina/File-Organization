@@ -83,6 +83,11 @@ bufferpool* loadBuffer();
 */
 int deletePage(bufferpool *buffer, int pgNum);
 
+/*
+* Gera um output em arquivo de quantos hits e faults foram computados pelo buffer
+*/
+int writeBufferInfo(bufferpool *buffer);
+
 int BtreeSearchCode(int searchKey);
 
 int searchTheKey(bufferpool *myBuffer, int searchKey, int pageNum);
