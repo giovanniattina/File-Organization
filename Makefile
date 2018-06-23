@@ -34,9 +34,12 @@ func9:
 	./programaTrab2 9
 func12:
 	./programaTrab2 12 12345678
+func12b:
+	./programaTrab2 12 47654321
 func13:
 	./programaTrab2 13 12345678
-
+func14:
+	./programaTrab2 14 12345678 47654321 '29/04/2018' '' 'USP' 'Sao Carlos' ''
 
 
 
