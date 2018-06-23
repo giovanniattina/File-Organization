@@ -7,10 +7,9 @@
 #include <time.h>
 
 /**
- *	Function is used in the first time that Buffer Pool is create
- *  Return:
- * 			- A empity buffer with page with RRN 0 in the root 
- * 
+ *	Funcao usada para alocar um novo buffer
+ *  Return: bufferpool * : o buffer gerado com raiz 0  e todas as posicoes livres
+ * 			
  */
 bufferpool* createBuffer(){
 
@@ -31,6 +30,9 @@ bufferpool* createBuffer(){
 	return buffer;
 }
 
+/*
+*Encontra a proxima posicao do buffer para isercao. A politica NRU e' aplicada aqui.
+*/
 int findBufferPos(bufferpool *buffer, int pgNum){
 	
 	//verifica se a pagina ja esta no buffer, retorna a posicao dela no buffer
@@ -66,16 +68,15 @@ int findBufferPos(bufferpool *buffer, int pgNum){
 
 	return vet[ i ];
 }
+
 /**
  * 
- * Update the substitution policies value by the pass through parameter in a specific page
- * Parameters:
- * 			- buffer: Buffer-pool with the data to be change
- * 			- pagePos: page to modify the policy value.
- * 			- changedVal: new policy value
- * Return:
- * 			- 0 to show the function finalization
- *  
+ * Atualiza o estado de alteracao da pagina de disco passada
+ *
+ * \param bufferpool *buffer: bufferpool contendo a pagina que sera atualizada
+ * \param int pagePos : posicao no buffer da pagina que sera alterada
+ * \param int changedVal: novo valor da politica da pagina
+ * return int: 0 informando que foi bem sucedida
  */
 
 int updateBufferUse(bufferpool *buffer, int pagePos, int changedVal){
@@ -90,48 +91,45 @@ int updateBufferUse(bufferpool *buffer, int pagePos, int changedVal){
 	return 0;
 }
 
-/**
- * Pass a page to be added in the buffer pool, with our political number
- * Parameter:
- * 			-buffer: Buffer Pool to insert the new page
- * 			-page: new page to be inserted
- * 			 - changeVal: new political value
- * Return:
- * 			- 0 if any error occur
- * 			- 1 if succeed 
- */
+/*
+*
+* Faz insercao de uma nova pagina no buffer utilizando a politica de substituicao NRU.
+* Caso alguma pagina modificada seja removida, sera feito um acesso ao disco para grava-la.
+*
+* \param bufferpool *buffer : o bufferpool contendo as paginas de indice
+* \param btpage *page : a pagina a ser salva
+* \param int changedVal : valor do modificador de acesso a ser atribuido para a pagina
+*/
 int insertBuffer(bufferpool *buffer, btpage *page, int changedVal){
 
-	//finding the postion for the insertion
+	//encontrando posicao de insercao
 	int insertPos = findBufferPos(buffer, page->pageNum);
-	//printf("insertPos = %d\n", insertPos);
 
-	//if this position is not empty, the data gets written to the disk
+	//se essa posicao nao esta vazia, os dados serao escritos no disco antes de modificar
 	if( buffer->pageNums[ insertPos ] != -1){
-		//printf("buffer->page[insertPos]->pageNum = %d\n", buffer->page[insertPos]->pageNum);
 		if (!savePage(buffer, buffer->page[insertPos])) return 0;
 	}
 
 	buffer->changed[insertPos] = changedVal;
-	//inserting the page and updating
+	//inserindo a pagina e atualizando numero das paginas em buffer
 	buffer->page[ insertPos ] = page;
 	buffer->pageNums[ insertPos ] = page->pageNum;
 
 	return 1;
 }
-/**
- * Search a page in the buffer pool and change the value for NRU, if the page is not in the buffer search it in the file and adds following the substitution policies
- * Parameters:
- * 				- Buffer to search the page
- * 				- pageNum: page to search
- * 				- changeVal: new political value
- * Return:
- * 			Page founded
- */
+
+/*
+* Ira buscar no buffer pela pagina contendo o numero(rrn) passado. 
+* Caso ela nao seja encontrada, sera recuperada do disco e inserida no buffer.
+*
+* \param int pageNum : rrn do arquivo de indice da pagina buscada
+* \param int changedVal : modificador de acesso da operacao que se deseja realizar na pagina
+* \return btPage* : a pagina de disco com o numero passado.
+*/
 btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal){
 	
 
-	//tries to find the page inside the buffer
+	//tenta encontrar a pagina no buffer
 	for (int i = 0; i < BUFFERSIZE; i++){
 		if(buffer->pageNums[i] == pageNum){
 			updateBufferUse(buffer, i, changedVal);
@@ -139,7 +137,7 @@ btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal){
 			return buffer->page[i];
 		}
 	}
-	//page not found. Will retrieve from disk
+	//pagina nao encontrada. Vai recuperar do disco
 	FILE *btree =fopen(INDEXFILENAME, "rb+");
 
 	if (btree == NULL) return NULL;
@@ -150,15 +148,15 @@ btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal){
 	}
 	setStatus(btree, 0);
 
-	//creating an empty page
+	//criando nova pagina vazia
 	btpage* page = createPage();
 
-	//reading key amount and first pointer
+	//lendo quantidade de chaves e primeiro ponteiro
 	fseek(btree, INDEXHEADERSIZE + NODESIZE * pageNum, SEEK_SET);
 	fread(&(page->keycount), sizeof(int), 1, btree);
 	fread(&(page->child[0]), sizeof(int), 1, btree);
 
-	//reading remaining keys and pointers
+	//lendo as chaves e os ponteiros restantes
 	for(int i=0; i<page->keycount; i++){
 		fread(&(page->key[i]), sizeof(treekey), 1, btree);
 		fread(&(page->child[i+1]), sizeof(int), 1, btree);
@@ -175,44 +173,36 @@ btpage* searchPage(bufferpool *buffer, int pageNum, int changedVal){
 	return page;
 }
 
-/**
- * Return the root page save in the buffer pool
- * Parameters:
- * 				- buffer: Buffer Pool with the infos
- * Retun:
- * 		 - the root page
- * 
- */
+/*
+* Retorna a pagina da raiz armazenada no buffer
+* 
+* \return btpage * : a raiz da arvore
+*/
 btpage* getRootPage(bufferpool *buffer){
 	
 	buffer->hit++;
 	return buffer->page[0];
 }
-/**
- *	Change the root page in the Buffer
- *  Parameters:
- * 				- Buffer: Buffer to work on
- * 				- newRoot: new root page
- * Return:
- * 			- 0 if any error occur
- * 			- 1 if succeed 
- */
+
+/*
+* Define a pagina passada como a nova raiz do buffer.
+* Fara 1 acesso ao disco para escrever a raiz antiga caso tenha sido modificada
+*
+* \param btpage *newRoot : pagina que se tornara a nova raiz da arvore
+* \return int : 1 se terminou sem erros. 0 se algum erro ocorreu. 
+*/
 int setRootPage(bufferpool *buffer, btpage *newRoot){
 	if( !savePage(buffer, buffer->page[0]) ) return 0;
 
 	buffer->page[0] = newRoot;
 	buffer->pageNums[0] = newRoot->pageNum;
+	buffer->fault++;
 	return 1;
 }
-/**
- * SAve all the pages in the Buffer-Pool in the file
- * Parameters:
- * 				- Buffer: buffer pool with the pages to save
- *  Return:
- * 			- 0 if any error occur
- * 			- 1 if succeed 
-*/
 
+/*
+* Salva todas as paginas modificadas em disco. Libera toda a memoria alocada para o buffer.
+*/
 int saveAllPages(bufferpool *buffer){
 	
 	for (int i = 0; i < BUFFERSIZE; i++){
@@ -228,15 +218,12 @@ int saveAllPages(bufferpool *buffer){
 	return 1;
 }
 
-/**
- * Save one page file in the B-Tree file, checking if the page to save is the root, so att th file header
- * Parameters:
- * 			-  buffer: Buffer if the data
- * 			- page: page to save
- * Return:
- * 			- 0 if any error occur
- * 			- 1 if succeed
- */
+/*
+* Salva em disco a pagina passada, liberando o espaco ocupado por ela no buffer
+* 
+* \param bufferpool *buffer : bufferpool contendo paginas de disco do indice
+* \param btpage* page : pagina que sera retirada do buffer e salva
+*/
 int savePage(bufferpool *buffer, btpage *page){
 	
 	FILE *btreeFile = fopen(INDEXFILENAME, "rb+");
@@ -271,6 +258,9 @@ int savePage(bufferpool *buffer, btpage *page){
 	return 1;
 }
 
+/*
+* Imprime o conteudo do buffer, incluindo cada pagina contida nele
+*/
 void printBuffer(bufferpool* buffer){
 
 	printf("total pages: %d, treeHeight: %d\n", buffer->totalPages, buffer->treeHeight);
@@ -285,7 +275,11 @@ void printBuffer(bufferpool* buffer){
 }
 
 /*
-
+* Acessa o disco para recuperar os dados de uma pagina do arquivo de indices.
+*
+* \param int pageNum : rrn da pagina a ser recuperada
+* \param FILE *btreeFile : handler do arquivo ja aberto para leitura da pagina
+* return btpage* : a pagina recuperada
 */
 btpage* readIndexPage(int pageNum, FILE* btreeFile){
 	fseek(btreeFile, INDEXHEADERSIZE + NODESIZE * pageNum, SEEK_SET);
@@ -323,11 +317,10 @@ int deletePage(bufferpool *buffer, int pageNum){
 	return 0;
 }
 
-/**
- * Create the Buffer-Pool withe the tre pages preloades, always trying to save a page from each height of the tree
- * Returns an address for the Buffer-Pool data   
- */
-
+/*
+* Acessa a arvore em largura ate preencher todas as posicos vazias do buffer ou 
+* ate chegar ao final do arquivo de indice
+*/
 bufferpool* loadBuffer(){
 	
 	FILE *btreeFile = fopen(INDEXFILENAME, "rb+");
@@ -343,7 +336,7 @@ bufferpool* loadBuffer(){
 	int rootNum, bufferPos = 1, cont = 0, searchPos = 0, endLoad = 0;
 	bufferpool* buffer = createBuffer();
 	
-	//retrieving root number, tree height and last page number
+	//recuperando o numero da pagina raiz, altura da arvore e numero da ultima pagina criada
 	fread(&(rootNum), sizeof(int), 1,btreeFile);
 	fread(&(buffer->treeHeight), sizeof(int), 1,btreeFile);
 	fread(&(buffer->totalPages), sizeof(int), 1,btreeFile);
@@ -352,26 +345,27 @@ bufferpool* loadBuffer(){
 	fclose(btreeFile);
 	
 	buffer->pageNums[0] = -1;//setando como posicao livre para conseguir buscar
-	//set buffer position 0 to be the root
+	//setando posicao 0 do vetor de paginas para ser a raiz
 	buffer->page[0] = searchPage(buffer, rootNum, UNUSED);
 	buffer->pageNums[0] = rootNum;
 	buffer->pageNums[1] = -1;
 
-	//will load 4 additional pages to the buffer
+	//ira carregar mais 4 paginas do arquivo de indice
 	while(!endLoad){
-		//will look at the children of each filled position of the buffer starting with the root
+
+		//vai olhar os filhos de cada posicao preenchida do buffer, iniciando pela raiz
 		if(buffer->page[searchPos]->child[cont] != -1){
 			searchPage(buffer, buffer->page[searchPos]->child[cont], UNUSED);
 			buffer->pageNums[bufferPos++] = buffer->page[searchPos]->child[cont];
 		}
 		cont++;
-		//checking if the last pointer was reached
+		//checando se chegou no ultimo ponteiro
 		if(cont >= buffer->page[searchPos]->keycount + 1){
 			searchPos++;
 			cont =0;
 		}
 		
-		//checking stop conditions: all positions filled, no more pages to access
+		//checando condicao de parada: todas as posicoes do buffer preenchidas ou sem paginas restantes para ler
 		if(bufferPos >= BUFFERSIZE || buffer->page[searchPos] == NULL || searchPos >= BUFFERSIZE)
 			endLoad = 1;
 	}
@@ -382,96 +376,72 @@ bufferpool* loadBuffer(){
 	
 	return buffer;
 }
-/**  
- *Function starts by searching the root of the tree that is saved in the buffer pool until it finds the RNN value of the required data
- * Parameters::
- *     myBuffer: Buffer Pool with preloaded data to do the search
- *     searchKey: Key you were looking for in the tree
- *     Return: 
- *      -1: if I do not find the key in the tree
- *      c.a.c: RNN in the data file
-*/
 
+/*
+* Funcao inicia buscando a raiz da arvore que e' salva no bufferpool ate encontrar o rrn requisitado
+*
+* \param bufferpool *buffer: bufferpool carregado com paginas para a busca
+* \param int searchKey : chave que esta sendo buscada na arvore
+* \return : -1 se a chave nao foi encontrada. RRN do registro no arquivo de dados.
+*/
 int searchRoot(bufferpool *myBuffer, int searchKey){
 
-	/*
-        pos -> variable to save the position that the key is saved on the page and also to save the location of the child page pointer if you can not find the key on the page
-    	rrn -> variable saves the RNN value of the data being searched in the data file
-    */
+	/*	variavel para guardar a posicao em que a chave e' salva na pagina e tambem para guardar a posicao do ponteiro filho para quando a chave nao for encontrada*/
 	int pos = -1;
 	int rrn = -1;
 
-	//first checks to see if there is a root in the buffer
+	//primeiro checa se existe uma raiz no buffer
 	if (myBuffer->pageNums[0] != -1){
-		printf("Raiz: %d\n", myBuffer->pageNums[0]);
-
-		//exist the root in the buffer, look for the key in the page (root), not finding, search in the children
+		
+		// existe raiz no buffer, vai buscar a chave na pagina. nao encontrando, busca nos filhos
 		for (int i = 0; i < myBuffer->page[0]->keycount; i++){
 
 			if (myBuffer->page[0]->key[i].codINEP >= searchKey){
-				printf("Verificando na chave %d\n", myBuffer->page[0]->key[i].codINEP);
 				pos = i;
 				break;
 			}
 		}
-		printf("pos salva %d\n\n", pos);
-		//if I find the key, returns the rnn of the data file
+
+		//se chave encontrada, retorna rrn do registro no arquivo de dados
 		if (myBuffer->page[0]->key[pos].codINEP == searchKey)
 			rrn = myBuffer->page[0]->key[pos].rrn;
 		else{
-			printf("vai para a pagina %d\n", myBuffer->page[0]->child[pos]);
 
 			if (myBuffer->page[0]->child[pos] != -1)
-			{
-				printf("chave after %d\n", myBuffer->page[0]->key[pos - 1].codINEP);
-
-				printf("chave %d\n", myBuffer->page[0]->key[pos].codINEP);
-
 				rrn = searchTheKey(myBuffer, searchKey, myBuffer->page[0]->child[pos]);
-			}
 		}
 	}
 	return rrn;
 }
 
-/**
- *  Function searches on a page for the searched key, it is recursive, that is, it goes to the child node of the tree
- *  Parametros:
- *    mtBuffer: buffer with preloaded pages
- *    searchKey: key you are looking for in the tree
- *    pageNum: page that is looking for the key
-
- *  Return: 
- *    -1: if  does not find the key in the tree
- *    c.a.c: RNN in the data file
- */
-
+/*
+* Funcao que percorre  pagina buscando a chave. E' recursiva ate chegar em uma folha da arvore
+* 
+* \param bufferpool *mybuffer: bufferpool carregado com paginas para a busca
+* \param int searchKey : chave que esta sendo buscada na arvore
+* \param int pageNum : numero da pagina que esta sendo percorrida
+* \return : -1 se a chave nao foi encontrada. RRN do registro no arquivo de dados.
+*/
 int searchTheKey(bufferpool *myBuffer, int searchKey, int pageNum){
 
 	/*  
-    btpage -> receives the page from the tree that the key is saved
-        pos -> variable to save the position that the key is saved on the page and also to save the location of the child page pointer if you can not find the key on the page
+    btpage -> receve a pagina da arvore onde a chave esta salva
+        pos -> variavel para guardar a posicao em que a chave e' salva na pagina e tambem para guardar a posicao do ponteiro filho para quando a chave nao for encontrada
   */
 	btpage *pageReturn = searchPage(myBuffer, pageNum, 2);
 	int pos = -1;
 
 	for (int i = 0; i < pageReturn->keycount; i++)
 		if (pageReturn->key[i].codINEP >= searchKey){
-			printf("Verificando na chave %d\n", pageReturn->key[i].codINEP);
 			pos = i;
 			break;
 		}
 
-	printf("pos salva %d\n\n", pos);
 	if (pageReturn->key[pos].codINEP == searchKey){
-		printf("Ai\n");
 		return pageReturn->key[pos].rrn;
 	}else{
-		printf("vai para a pagina %d\n", pageReturn->child[pos]);
 
 		if (pageReturn->child[pos] != -1){
-			printf("chave %d\n", pageReturn->key[pos].codINEP);
-			printf("a chave %d\n", pageReturn->key[pos - 1].codINEP);
 
 			return searchTheKey(myBuffer, searchKey, pageReturn->child[pos]);
 		}else	return -1;
@@ -479,22 +449,15 @@ int searchTheKey(bufferpool *myBuffer, int searchKey, int pageNum){
 }
 
 /**
- * Function returns the RNN in the search for a key in the tree
- * Parametros:
- *       searchKey: key being searched on the tree
- * Return:
- *       RNN in the data file
- *       -1 if does not find the key in the tree
- 
+* Funcao que retorna o RRN na busca por uma chave na arvore
+*
+* \param int searchKey: chave buscada
+* \return : -1 se a chave nao foi encontrada. RRN do registro no arquivo de dados.
 */
 int BtreeSearchCode(int searchKey){
 
 	bufferpool *myBuffer;
 	myBuffer = loadBuffer();
-	printBuffer(myBuffer);
-	printf("------\n");
-	printf("Buffer Load\n");
-	printf("------\n");
 
 	return searchRoot(myBuffer, searchKey);
 }

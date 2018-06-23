@@ -23,6 +23,9 @@ int createBtreeIndexFile(){
 	return 1;
 }
 
+/*
+*Cria uma nova pagina de disco(no da arvore) com 0 chaves
+*/
 btpage *createPage(){
 
 	btpage *page = (btpage*)calloc(1, sizeof(btpage));
@@ -34,6 +37,17 @@ btpage *createPage(){
 	return page;
 }
 
+/*
+* Faz a insercao da chave de fato. recebe a pagina e a posicao de insercao ja definidas.
+* Verifica também se houve overflow, realizando entao split com criacao de uma nova pagina e
+* promocao de uma chave.
+*
+*\param *root : pagina onde sera feita a insercao
+*\param *buffer : buffer utilizado para diminuir acessos feitos a disco
+*\param int insertPos : posicao de insercao na chave passada ( de 0 ate ordem da arvore - 1)
+*\param int *ptr, *key, *rrn : dados da chave a ser inserida. Caso haja promocao de chave, 
+*	serao alterados para o valor da chave que foi promovida
+*/
 int insertKey(bufferpool *buffer, btpage *root, int insertPos, int *ptr, int *key, int *rrn){
 
 
@@ -152,6 +166,11 @@ int insertKey(bufferpool *buffer, btpage *root, int insertPos, int *ptr, int *ke
 	return 1;
 }
 
+/*
+* Percorre a arvore procurando pela posicao de insercao da chave passada.
+* Funcao recursiva que vai acessando as paginas com chaves mais proximas da passada.
+* E responsavel por gerir as chaves promovidas da funcao insertKey durante a volta da recursao
+*/
 int findInsertPos(bufferpool* buffer, btpage *root, int *ptrRead, int *key, int *rrn){
 
 	int insertPos = 0, keyRead, promoted = 0, pageNumMem = root->pageNum;
@@ -187,6 +206,11 @@ int findInsertPos(bufferpool* buffer, btpage *root, int *ptrRead, int *key, int 
 		return 0;
 }
 
+/*
+*Inicia uma nova insercao no arquivo de indice. Para tal, carrega a raiz da arvore e 
+* chama a funcao da recursao.
+* precisa analisar o retorno da recursao para recuperar uma nova pagina promovida para a raiz
+*/
 int insertKeyToIndex(bufferpool *buffer, int key, int rrn){
 
 	int ptr = -1, promoted = -1;
@@ -219,10 +243,16 @@ int insertKeyToIndex(bufferpool *buffer, int key, int rrn){
 	return 1;
 }
 
+/*
+* Parte recursiva da busca por uma chave que ira acessar paginas de forma a tentar encontrar
+* a chave(codINEP) passada
+*/
 int searchKey(btpage *root, bufferpool *buffer, int codINEP){
 
 	int i = 0, keyAmnt, halt = 0;
 	keyAmnt = root->keycount;
+
+	//compara todas as chaves da pagina com a chave buscada
 	while( i < keyAmnt  && !halt){
 
 		if( codINEP <= root->key[i].codINEP )//encontrou ou a chave ou codigo maior
@@ -236,19 +266,29 @@ int searchKey(btpage *root, bufferpool *buffer, int codINEP){
 	if(halt && root->key[i].codINEP == codINEP) return root->key[i].rrn;
 
 	if(root->child[i] == -1) return -1;
-
+	
+	//chama a busca novamente para a pagina do ponteiro lido
 	return searchKey(searchPage(buffer, root->child[i], ACCESSED), buffer, codINEP);
 }
 
+/*
+* Inicializa a busca da arvore, recuperando a raiz pelo buffer e chamando a busca recursiva.
+* \return int RRN : Se encontrou a chave, retorna o RRN do registro no arquivo de dados, senao
+*		retorna -1;
+*/
 int BtreeSearch(int codINEP){
 	
+	//inicializa o buffer, carregando com paginas do indice
 	bufferpool *buffer = loadBuffer();
 	if (!buffer) return -2;
+	//recupera raiz da arvore
 	btpage *root = getRootPage(buffer);
 	if (!root) return -2;
-
+	
+	//chama busca recursiva
 	int rrn = searchKey(root, buffer, codINEP);
-
+	
+	//liberando as paginas do buffer(nao foram alteradas, logo nao serao reescritas)
 	for (int i = 0; i < BUFFERSIZE; i++){
 		if(buffer->pageNums[i] != -1)
 			deletePage(buffer, buffer->pageNums[i]);
@@ -257,7 +297,13 @@ int BtreeSearch(int codINEP){
 	return rrn;	
 }
 
+/*
+*Parte recursiva da impressao da arvore
+*/
 void printRec(FILE *indexFile, int root){
+
+	//vai acessar a pagina no rrn passado em root
+	//vai ler os dados da pagina e imprimir	
 	printf("PAGINA %3d.", root);
 	fseek(indexFile, INDEXHEADERSIZE + root*NODESIZE, SEEK_SET);
 	int keyAmnt;
@@ -295,6 +341,9 @@ void printRec(FILE *indexFile, int root){
 	}
 }
 
+/*
+*Imprime a arvore B fazendo acesso em profundidade
+*/
 int printBtree(){
 
 	FILE *indexFile = fopen(INDEXFILENAME, "r");
@@ -313,6 +362,9 @@ int printBtree(){
 	fclose(indexFile);
 }
 
+/*
+*Imprime os dados de uma pagina de disco
+*/
 void printPage(btpage *page){
 	printf("\npage %d\n keyAmnt: %d -> %d|",page->pageNum, page->keycount, page->child[0]);
 
@@ -326,20 +378,25 @@ void printPage(btpage *page){
 
 //copia chaves e ponteiros de page a partir de uma posicao especificada
 int copyToVet(treekey* keys, int* children, btpage* page, int insertPos){
-
+	
+	//enquanto nao chegar na posicao limite, copia dados da pagina
 	for(int i = 0; i < page->keycount; i++){
 		keys[insertPos].codINEP = page->key[i].codINEP;
 		keys[insertPos].rrn = page->key[i].rrn;
 		children[insertPos++] = page->child[i];
 	}
+	//ao terminar, restara copiar o ultimo ponteiro(direito)
 	children[insertPos] = page->child[page->keycount];
 
 	return insertPos;
-
 }
 
+/*
+* Copia dados de chave e rrn para preencher uma pagina de indice
+*/
 int copyToPage(treekey* keys, int* children, btpage* page, int insertPos, int vetSize){
-
+	
+	//percorre os vetores ate o final copiando os dados
 	for(int i = 0; i < vetSize; i++){
 		page->key[i].codINEP = keys[insertPos].codINEP;
 		page->key[i].rrn = keys[insertPos].rrn;
@@ -353,6 +410,15 @@ int copyToPage(treekey* keys, int* children, btpage* page, int insertPos, int ve
 
 }
 
+/*
+* Faz a redistribuicao de fato
+*
+*\param btPage *childCpy : pagina de um dos filhos que sera usada para a copia
+*\param btPage *parentCpy : pagina do pai que mediara a redistribuicao
+*\param child : qual ponteiro do pai(parentCpy) esta sofrendo redistribuicao
+*\param right : informa se a pagina childCpy passada foi o filho direito ou esquerdo de parentCpy
+*		permitindo saber qual pagina ainda precisa ser recuperada do buffer para tentar redistribuir
+*/
 int redistribPages(bufferpool* buffer, btpage* childCpy, btpage* parentCpy, int child, unsigned char right){
 
 	treekey keys[TREEORDER + (TREEORDER/2) - 2];
@@ -398,6 +464,12 @@ int redistribPages(bufferpool* buffer, btpage* childCpy, btpage* parentCpy, int 
 
 }
 
+/*
+* Verifica se a redistribuicao eh possivel. Se for, chama a funcao que a realizara.
+* Caso nao seja possivel, ira retornar 0.
+*\param btPage *parent : nodo pai dos nodos que serao testados
+*\param int child : indica qual ponteiro de parent deve ser tentada a redistribuicao
+*/
 int redistrib(bufferpool* buffer, btpage* parent, int child){
 
 	treekey keys[TREEORDER + (TREEORDER/2) - 2];
@@ -431,7 +503,7 @@ int redistrib(bufferpool* buffer, btpage* parent, int child){
 		btpage* leftChild = searchPage(buffer, parentCpy->child[parentCpy->keycount-1], MODIFIED);
 		if(leftChild->keycount < TREEORDER/2){
 			free(parentCpy);
-			return 0;
+			return 0;   //nao consegue fazer redistribuicao
 		}
 
 		btpage* leftChildCpy = createPage();
@@ -450,7 +522,7 @@ int redistrib(bufferpool* buffer, btpage* parent, int child){
 		btpage* leftChild = searchPage(buffer, parentCpy->child[child - 1], MODIFIED);
 		if(leftChild->keycount < TREEORDER/2){	//tenta fazer na esquerda
 			free(parentCpy);
-			return 0;	//cao conseguiu com nenhum deles
+			return 0;	//nao conseguiu redistribuir com nenhum dos irmaos
 		}
 		btpage* leftChildCpy = createPage();
 		memcpy(leftChildCpy, leftChild, sizeof(btpage));		//copia pois vai chamar searchPage() novamente
@@ -462,11 +534,12 @@ int redistrib(bufferpool* buffer, btpage* parent, int child){
 	memcpy(rightChildCpy, rightChild, sizeof(btpage));		//copia pois vai chamar searchPage() novamente
 
 	return redistribPages(buffer, rightChildCpy, parentCpy, child, 1);
-
-
-
 }
-
+/*
+* Faz a concatenacao de um nodo com seu nodo irmao.
+*\param btpage *parent : o nodo pai dos irmaos que serao concatenados
+*\param int child : ponteiro da pagina parent que devera ser olhado para recuperar os irmaos
+*/
 int concat(bufferpool* buffer, btpage* parent, int child){
 	
 	int leastPage;//o numero da pagina que ficar no fim da concatenacao
@@ -587,6 +660,15 @@ int concat(bufferpool* buffer, btpage* parent, int child){
 	return -1;
 }
 
+/*
+* Faz a remocao ( de fato ) de uma chave da pagina.
+* Eh recursiva para o caso onde a remocao foi iniciada num nodo nao folha.
+* Portanto, eh responsavel tambem por realizar a troca com a chave folha nesses casos
+* 
+*\param btpage *leaf : folha que tera chave removida
+*\int removePos : posicao da chave que sera removida na pagina da filha
+*\int rmPageNum : numero da pagina onde ocorrera a remocao.
+*/
 int removeKey(bufferpool* buffer, btpage* leaf, int removePos, int rmPageNum){
 
 	if(rmPageNum != -1){
@@ -604,12 +686,11 @@ int removeKey(bufferpool* buffer, btpage* leaf, int removePos, int rmPageNum){
 					parent = searchPage(buffer, parentPageNum, MODIFIED);
 					return concat(buffer, parent, parent->keycount);
 				}
-				 //as opcoes de retorno restantes sao -1, erro, ou 0 nao precisa propagar
-				return retVal > 0 ? 1 : -2;
+				 //as opcoes de retorno restantes sao -1 se concatenou e resolveu, ou -2 erro
+				return retVal > 0 ? -1 : -2;
 			}
 			
 			return underflow;	//0 se nao houve nenhum underflow. -1 se houve erro
-
 		}
 		else{
 
@@ -647,6 +728,17 @@ int removeKey(bufferpool* buffer, btpage* leaf, int removePos, int rmPageNum){
 	return leaf->keycount < (TREEORDER/2) - 1 ? 1 : -1;
 }
 
+/*
+* Funcao recursiva principal da remocao. Realiza busca da chave a remover, chamando a removeKey para ela
+* ou retornando caso nao encontre a chave. Trata o underflow na volta da recursao, chamando redistribuicao e 
+* concatenacao.
+*
+* \param btpage *root : pagina de disco onde sera feita a pesquisa pela chave
+* \param int codINEP : chave do indice que se deseja remover
+* \param unsignedChar removeType : acionara remocao do registro do arquivo de dados quando for passado valor diferente de 0.
+*				Fara a remocao apenas do arquivo de indice se for passado o valor 0
+* \return int : -1 quando terminou com underflow na raiz. -2 quando houve erro na remocao. -3 quando a chave nao foi encontrada na arvore.
+*/
 int findRemovePos(bufferpool* buffer, btpage* root, int codINEP, unsigned char removeType){
 
 	int i = 0, halt = 0, rootPageNum = root->pageNum, underflow;
@@ -702,13 +794,13 @@ int findRemovePos(bufferpool* buffer, btpage* root, int codINEP, unsigned char r
 		btpage *parent = searchPage(buffer, rootPageNum, MODIFIED);
 		int retVal = redistrib(buffer, parent, i);
 
-		if(retVal == 0){
+		if(retVal == 0){ //nao conseguiu redistribuir, entao concatena
 			
 			parent = searchPage(buffer, rootPageNum, MODIFIED);
 			return concat(buffer, parent, i);	//se propagou, retorna nmr da pagina atual
 		}
 		
-		// se fez resditribuicao nao precisa fazer nada(retorna 0). se deu erro retorna -1
+		// se fez resditribuicao nao precisa fazer nada(retorna -1). se deu erro retorna -2
 		return retVal > 0 ? -1 : -2;
 	}
 	if (!underflow) return 0;	//retorno da recursao apos remocao e ajustes
@@ -716,6 +808,10 @@ int findRemovePos(bufferpool* buffer, btpage* root, int codINEP, unsigned char r
 
 }
 
+/*
+* Funcao que da inicio a remocao. Recupera a raiz do buffer iniciando a busca recursiva pelo
+* no a ser removido. Ela trata o retorno da funcao indicando se houve underflow na raiz.
+*/
 int BtreeRemove(int codINEP, unsigned char removeType){
 
 	bufferpool* buffer = loadBuffer();

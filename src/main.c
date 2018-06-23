@@ -29,10 +29,8 @@ int main(int argc, char **argv){
 	}
 
 	opt = atoi(argv[1]);
-	//funcionalidade 10 equivalente a 1 e funcionalidade 11 equivalente a 6
-	opt = (opt == 10) ? 1 : opt;
-	opt = (opt == 11) ? 6 : opt;
-
+	
+	//selecionando funcionalidade que sera executada
 	switch(opt){
 
 		case 1:		//carregar arquivos csv
@@ -174,7 +172,8 @@ int main(int argc, char **argv){
 			if(stack != NULL)
 				free(stack);
 			break;
-		case 10:
+
+		case 10: //leitura do arquivo .csv com insercao no arquivo de dados e no arquivo de indices
 			if (argc < 3)
 			{
 				printf("Uso: %s 1 'arquivo.csv'\n", argv[0]);
@@ -188,7 +187,9 @@ int main(int argc, char **argv){
 				printf("Arquivo carregado.\n");
 			
 			break;
-		case 11:
+
+		case 11://insercao de um novo registro
+			//insere no arquivo de dados e depois insere no arquivo de indices
 			RRN = atoi(argv[2]);
 			valorCampo1 = atoi(argv[3]);
 			strcpy(valorCampo2, argv[4]);
@@ -209,7 +210,7 @@ int main(int argc, char **argv){
 
 		case 12://recuperacao de registro com base numa chave do arquivo de indice
 			codInep = atoi(argv[2]);
-			RRN = BtreeSearchCode(codInep);
+			RRN = BtreeSearch(codInep);
 			//verifica se o RRN retornado eh valido
 			if(RRN < -1)
 				printf("Falha no processamento do arquivo.\n");
@@ -221,9 +222,10 @@ int main(int argc, char **argv){
 			break;
 
 		case 13:	//remocao a partir de uma chave do indice primario
-
+			
+			//faz a busca pelo indice, remove dos dados, remove do indice e arruma arvore
 			codInep = atoi(argv[2]);
-			funcResult = BtreeRemove(codInep, REMOVE_FROM_DISK); //faz a busca pelo indice, remove dos dados, remove do indice e arruma arvore
+			funcResult = BtreeRemove(codInep, REMOVE_FROM_DISK); 
 			if(funcResult < 0)
 				printf("Falha no processamento do arquivo.\n");
 			else if (!funcResult)
@@ -232,6 +234,7 @@ int main(int argc, char **argv){
 					printf("Registro removido com sucesso.\n");
 			
 			break;
+		
 		case 14:	//atualizacao dos campos
 
 			//pegando parametros
@@ -244,7 +247,7 @@ int main(int argc, char **argv){
 			strcpy(valorCampo6, argv[8]);
 
 			//encontra rrn no registro
-			RRN = BtreeSearchCode(codInep);
+			RRN = BtreeSearch(codInep);
 
 			if(RRN < -1)
 				printf("Falha no processamento do arquivo.\n");
