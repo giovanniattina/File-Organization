@@ -201,6 +201,19 @@ int setRootPage(bufferpool *buffer, btpage *newRoot){
 }
 
 /*
+* Gera um output em arquivo de quantos hits e faults foram computados pelo buffer
+*/
+int writeBufferInfo(bufferpool *buffer){
+
+	FILE *bufferInfo =fopen("buffer-info.txt", "a+");
+	if(!bufferInfo) return 0;
+	fprintf(bufferInfo, "Page fault: %d; Page hit: %d.\n", buffer->fault, buffer->hit);
+	fclose(bufferInfo);
+
+	return 1;
+}
+
+/*
 * Salva todas as paginas modificadas em disco. Libera toda a memoria alocada para o buffer.
 */
 int saveAllPages(bufferpool *buffer){
@@ -211,10 +224,7 @@ int saveAllPages(bufferpool *buffer){
 				return 0;
 		}
 	}
-
-	FILE *bufferInfo =fopen("buffer-info.txt", "a+");
-	fprintf(bufferInfo, "Page fault: %d; Page hit: %d.\n", buffer->fault, buffer->hit);
-	fclose(bufferInfo);
+	writeBufferInfo(buffer);
 	return 1;
 }
 

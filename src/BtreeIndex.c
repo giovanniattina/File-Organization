@@ -293,6 +293,9 @@ int BtreeSearch(int codINEP){
 		if(buffer->pageNums[i] != -1)
 			deletePage(buffer, buffer->pageNums[i]);
 	}
+	
+	writeBufferInfo(buffer);
+
 	free(buffer);
 	return rrn;	
 }
